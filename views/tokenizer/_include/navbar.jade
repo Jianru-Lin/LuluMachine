@@ -13,22 +13,32 @@ mixin navbar(option)
 			#navbar.navbar-collapse.collapse
 				ul.nav.navbar-nav
 					li.active
-						a(href='#') 编辑 Edit
+						a(href='#') 
+							i.fa.fa-pencil-square-o
+							span &nbsp编辑 Edit
 					li
-						a(href='#') 实验 Try
+						a(href='#') 
+							i.fa.fa-flask
+							span &nbsp试验 Try
 				ul.nav.navbar-nav.navbar-right
 					li.dropdown
 						a.dropdown-toggle(href='#', data-toggle='dropdown') 了解更多 More 
 							span.caret
 						ul.dropdown-menu
 							li
-								a(href='#') 社区 
+								a(href='#') 
+									i.fa.fa-users
+									span &nbsp社区 
 									span.text-muted Community ...
 							li
-								a(href='#') 参考文档 
+								a(href='#') 
+									i.fa.fa-book
+									span &nbsp参考文档 
 									span.text-muted Document ...
 							li
-								a(href='#') 项目源码 
+								a(href='#') 
+									i.fa.fa-github
+									span &nbsp项目源码 
 									span.text-muted Github ...
 							li.divider
 							li
