@@ -1,0 +1,1 @@
+set DEBUG=LuluMachine & iojs bin\www

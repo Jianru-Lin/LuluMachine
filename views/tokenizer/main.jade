@@ -1,0 +1,13 @@
+extends ../_extends/layout
+
+block headex
+	title Lulu Tokenizer
+	link(rel='stylesheet', href='tokenizer/style.css')
+	script(src='tokenizer/main.js')
+
+block bodyex
+	include _include/navbar.jade
+	+navbar
+	.container-fluid
+		.row
+			h1 hello
