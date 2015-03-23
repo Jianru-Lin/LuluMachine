@@ -7,7 +7,10 @@ block headex
 
 block bodyex
 	include _include/navbar.jade
-	+navbar
 	.container-fluid
-		.row
-			h1 hello
+		.tabpanel
+			.tab-content
+				.tab-pane.fade.in.active.dev-area
+					h1 dev area
+				.tab-pane.fade.try-area
+					h1 try area
