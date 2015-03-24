@@ -30,6 +30,10 @@
 	min-width: 105px;
 }
 
+.btn-toolbar .btn-group {
+	margin-bottom: 10px;
+}
+
 .yellow {
 	background: yellow;
 }
