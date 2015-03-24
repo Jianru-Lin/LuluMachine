@@ -22,6 +22,14 @@
 	font-size: 16px;
 }
 
+.btn-toolbar {
+	padding-top: 15px;
+}
+
+.btn-toolbar .btn {
+	min-width: 105px;
+}
+
 .yellow {
 	background: yellow;
 }
