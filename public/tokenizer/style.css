@@ -22,36 +22,39 @@
 	font-size: 16px;
 }
 
-.btn-toolbar {
+.try-area {
+
+}
+
+.try-area .container-fluid {
+	white-space: pre;
+}
+
+.try-area .presentation {
+	font-family: Consolas;
+	margin-bottom: 75px;
+}
+
+.try-area .presentation > div {
+	margin-bottom: 15px;
+}
+
+.try-area .btn-toolbar {
 	padding-top: 15px;
-	position: absolute;
+	position: fixed;
 	left: 15px;
 	bottom: 15px;
 }
 
-.btn-toolbar .btn {
+.try-area .btn-toolbar .btn {
 	min-width: 105px;
 }
 
-.btn-toolbar .btn-group {
+.try-area .btn-toolbar .btn-group {
 	margin-bottom: 10px;
 }
 
-.presentation {
-	font-family: Consolas;
-}
-
-.presentation > div {
-	margin-bottom: 15px;
-}
-
-.elist > span {
-	display: inline-block;
-	width: 48px;
-	margin-right: 15px;	
-}
-
-.character-list > span {
+.try-area .input .char-list > span {
 	height: 48px;
 	font-size: 32px;
 	text-align: center;
@@ -60,34 +63,37 @@
 	cursor: pointer;
 }
 
-.character-list > span {
+.try-area .input .char-list > span {
 	background: white;
 	color: #333;
 	border: solid 1px #333;
 }
 
-.character-list > span:hover {
+.try-area .input .char-list > span:hover {
 	background: #333;
 	color: white;
 }
 
-.index-list > span{
+.try-area .same-size > span {
+	display: inline-block;
+	width: 48px;
+	margin-right: 15px;	
+}
+
+.try-area .index-list > span{
 	text-align: center;
 }
 
-.tokenizer-status > span {
+.try-area .tokenizer .status > span {
 	height: 4px;
 	border-radius: 2px;
+	background: black;
 }
 
-.t-continue {
-	background: #F7F7F9;
+.try-area .tokenizer .status .accept {
+	background: #00C0CF;
 }
 
-.t-success {
-	background: #DFF0D8;
-}
-
-.t-failure {
-	background: #FCF8E3;
+.try-area .tokenizer .status .reject {
+	background: #CF6600;
 }
