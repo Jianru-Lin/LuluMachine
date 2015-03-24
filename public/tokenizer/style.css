@@ -84,6 +84,13 @@
 	text-align: center;
 }
 
+.try-area .tokenizer {
+	margin-top: 15px;
+}
+
+.try-area .tokenizer .name {
+}
+
 .try-area .tokenizer .status > span {
 	height: 4px;
 	border-radius: 2px;
