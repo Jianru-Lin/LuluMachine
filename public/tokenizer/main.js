@@ -1,9 +1,9 @@
-;$(function() {
+$(function() {
 	var editor
 	var input
 
 	ace.require("ace/ext/language_tools")
-	
+
 	editor = ace.edit("editor")
 	editor.setTheme("ace/theme/ambiance")
 	editor.getSession().setMode("ace/mode/javascript")
@@ -19,4 +19,14 @@
 	input.getSession().setMode("ace/mode/text")
 	input.setValue('')
 
-});
+})
+
+$(function() {
+	var presentation = window.presentation = new Vue({
+		el: '.presentation',
+		data: {
+			len: 0,
+			pos: 0
+		}
+	})
+})
