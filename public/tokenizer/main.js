@@ -29,7 +29,11 @@ $(function() {
 			pos: 0,
 			segmentList: [{
 				charList: ['H', 'E', 'L', 'L', 'O'],
-				indexList: [0, 1, 2, 3, 4]
+				indexList: [0, 1, 2, 3, 4],
+				tokenizerList: [{
+					name: 'comment/string',
+					statusList: ['accept', 'accept', 'reject']
+				}]
 			}]
 		}
 	})
