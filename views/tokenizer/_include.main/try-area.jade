@@ -27,36 +27,12 @@
 	.presentation
 		h3 Input Text (len={{len}}, pos={{pos}})
 		.segment-list
-			.segment
+			.segment(v-repeat='segment : segmentList')
 				.input
 					.same-size.char-list
-						span H
-						span E
-						span L
-						span L
-						span O
-						span ,
-						span W
-						span O
-						span R
-						span L
-						span D
-						span !
-						span \n
+						span(v-repeat='char : segment.charList') {{char}}
 					.same-size.index-list
-						span 0
-						span 1
-						span 2
-						span 3
-						span 4
-						span 5
-						span 6
-						span 7
-						span 8
-						span 9
-						span 10
-						span 11
-						span 12
+						span(v-repeat='index : segment.indexList') {{index}}
 				.tokenizer-list
 					.tokenizer
 						.name tokenizer name

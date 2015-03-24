@@ -26,7 +26,11 @@ $(function() {
 		el: '.presentation',
 		data: {
 			len: 0,
-			pos: 0
+			pos: 0,
+			segmentList: [{
+				charList: ['H', 'E', 'L', 'L', 'O'],
+				indexList: [0, 1, 2, 3, 4]
+			}]
 		}
 	})
 })
