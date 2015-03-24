@@ -24,6 +24,9 @@
 
 .btn-toolbar {
 	padding-top: 15px;
+	position: absolute;
+	left: 15px;
+	bottom: 15px;
 }
 
 .btn-toolbar .btn {
