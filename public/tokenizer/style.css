@@ -68,6 +68,10 @@
 	color: white;
 }
 
+.index-list > span{
+	text-align: center;
+}
+
 .tokenizer-status > span {
 	height: 4px;
 	border-radius: 2px;
