@@ -68,6 +68,11 @@
 	color: white;
 }
 
+.tokenizer-status > span {
+	height: 4px;
+	border-radius: 2px;
+}
+
 .t-continue {
 	background: #F7F7F9;
 }
