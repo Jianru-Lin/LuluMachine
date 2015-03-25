@@ -68,14 +68,15 @@ $(function() {
 
 		// remember the segmentVM
 
-		this.segmentVM = presentation.segmentList[presentation.segmentVM.length - 1]
+		this.segmentVM = presentation.segmentList[presentation.segmentList.length - 1]
 
 		function init(src) {
 			var list = []
 			var fun = new Function('tokenizer', src)
 			fun(setupTokenizer)
+			return list
 
-			function setupTokenizer = function(name, fun) {
+			function setupTokenizer(name, fun) {
 				if (typeof name !== 'string' ||
 					typeof fun !== 'function') {
 					throw new Error('invalid arguments')
@@ -112,18 +113,19 @@ $(function() {
 				}
 				showTokenizerStatus(tokenizer)
 			}
+			return tokenizer
 		})
 
 		// check if finished
 
-		this.finished = c === undefined || this.tokenizerList.every(function(tokenizer) {
+		this.finished = (c === undefined || this.tokenizerList.every(function(tokenizer) {
 			return tokenizer.finished
-		})
+		}))
 
 		function showTokenizerStatus(tokenizer) {
 			var segmentVM = self.segmentVM
 			var tokenizerVM
-			for (var i = 0, len = segmentVM.length; i < len; ++i) {
+			for (var i = 0, len = segmentVM.tokenizerList.length; i < len; ++i) {
 				if (segmentVM.tokenizerList[i].name === tokenizer.name) {
 					tokenizerVM = segmentVM.tokenizerList[i]
 					break
@@ -148,6 +150,8 @@ $(function() {
 		_segment: undefined,
 		src: undefined,
 		txt: undefined,
+		pos: 0,
+		finished: false,
 
 		reset: function() {
 			// TODO
@@ -163,10 +167,19 @@ $(function() {
 		},
 
 		_startLoop: function() {
+			var self = this
 			if (this._loopHandle) {
 				return
 			}
-			this._loopHandle = setInterval(this.step.exec.bind(this.step), this._loopSpan)
+
+			this._loopHandle = setInterval(function() {
+				if (self.finished) {
+					self._stopLoop()
+				}
+				else {
+					self._step()
+				}
+			}, this._loopSpan)
 		},
 
 		_stopLoop: function() {
@@ -177,59 +190,35 @@ $(function() {
 			this._loopHandle = undefined
 		},
 
-		step: {
-			_nextPos: 0,
-			_segment: undefined,
-			_tokenizerMap: undefined,
-			_lastStepState: undefined,
+		_step: function() {
+			if (this.finished) {
+				return
+			}
 
-			exec: function() {
-				var self = this
-				console.log('step ' + new Date())
+			if (this._segment === undefined) {
+				this._segment = new Segment(this.src, this.txt, this.pos)
+			}
 
-				var c = self._txt[self._nextPos]
-				if (c === undefined) {
-					// return false means no more step
-					return false
+			var _segment = this._segment
+
+			_segment.next()
+
+			// finished ?
+			if (_segment.finished) {
+				// error ?
+				if (_segment.error) {
+					this.finished = true
+					this.error = _segment.error
 				}
-
-				if (self._segment === undefined) {
-					self._tokenizerMap = {}
-					var segment = self._segment = {
-						charList: [c],
-						indexList: [self._nextPos],
-						tokenizerList: self.tokenizerList.map(function(tokenizer) {
-							var tokenizerUI = {
-								name: tokenizer.name,
-								statusList: []
-							}
-							// remember the relation
-							self._tokenizerMap[tokenizer.name] = tokenizerUI
-							return tokenizerUI
-						})
-					}
-					presentation.segmentList.push(segment)
+				// more ?
+				else if (_segment.pos < (this.txt.length - 1)) {
+					// create a new segment
+					this._segment = new Segment(this.src, this.txt, _segment.pos)
 				}
 				else {
-					var segment = self._segment
-					segment.charList.push(c)
-					segment.indexList.push(self._nextPos)
+					// finished
+					this.finished = true
 				}
-
-				if (!self._lastStepState) {
-					self._lastStepState = self.tokenizerList.map(function(tokenizer) {
-						var state = {
-							name: tokenizer.name,
-							lastRet: tokenizer.def(c)
-						}
-						return state
-					})
-				}
-				else {
-					self._lastStepState = this.
-				}
-
-				// TODO
 			}
 		}
 	}
