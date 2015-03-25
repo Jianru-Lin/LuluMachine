@@ -169,10 +169,13 @@ $(function() {
 		// find winner tokenizer
 
 		if (this.finished && !this.error) {
-			this.winnerTokenizer = this.tokenizerList[0]
+			this.winnerTokenizer = undefined
 			this.tokenizerList.forEach(function(tokenizer) {
-				if (tokenizer.result[0] === 'accept' && 
-					tokenizer.result[1] > this.winnerTokenizer.result[1]) {
+				if (tokenizer.result[0] !== 'accept') return
+				if (this.winnerTokenizer === undefined) {
+					this.winnerTokenizer = tokenizer
+				}
+				else if (tokenizer.result[1] > this.winnerTokenizer.result[1]) {
 					this.winnerTokenizer = tokenizer
 				}
 			}, this)
