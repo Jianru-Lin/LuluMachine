@@ -1,24 +1,26 @@
 $(function() {
-	var editor
-	var input
+	var srcEditor
+	var txtEditor
 
 	ace.require("ace/ext/language_tools")
 
-	editor = ace.edit("editor")
-	editor.setTheme("ace/theme/ambiance")
-	editor.getSession().setMode("ace/mode/javascript")
-	editor.setValue('')
-	// editor.setOptions({
+	srcEditor = ace.edit("srcEditor")
+	srcEditor.setTheme("ace/theme/ambiance")
+	srcEditor.getSession().setMode("ace/mode/javascript")
+	srcEditor.setValue('')
+	// srcEditor.setOptions({
 	// 	enableBasicAutocompletion: true,
 	// 	enableSnippets: true,
 	// 	enableLiveAutocompletion: true
 	// })
 
-	input = ace.edit("input")
-	input.setTheme("ace/theme/dawn")
-	input.getSession().setMode("ace/mode/text")
-	input.setValue('')
+	txtEditor = ace.edit("txtEditor")
+	txtEditor.setTheme("ace/theme/dawn")
+	txtEditor.getSession().setMode("ace/mode/text")
+	txtEditor.setValue('')
 
+	window.srcEditor = srcEditor
+	window.txtEditor = txtEditor
 })
 
 $(function() {
@@ -27,14 +29,28 @@ $(function() {
 		data: {
 			len: 0,
 			pos: 0,
-			segmentList: [{
+			segmentList: [/*{
 				charList: ['H', 'E', 'L', 'L', 'O'],
 				indexList: [0, 1, 2, 3, 4],
 				tokenizerList: [{
 					name: 'comment/string',
 					statusList: ['accept', 'accept', 'reject']
 				}]
-			}]
+			}*/]
+		}
+	})
+})
+
+$(function() {
+	var controlbar = window.controlbar = new Vue({
+		el: '.controlbar',
+		methods: {
+			onPlay: function(e) {
+				var src = srcEditor.getValue()
+				var txt = txtEditor.getValue()
+				alert(src)
+				alert(txt)
+			}
 		}
 	})
 })
