@@ -43,22 +43,27 @@ $(function() {
 
 $(function() {
 
-	var player = {
+	var player = window.player = {
 
 		// tokenizer management
 
-		tokenizerCache: {},
+		tokenizerList: [],
 		
 		defTokenizer: function(name, def) {
 			if (typeof name !== 'string' ||
 				typeof def !== 'function') {
 				return
 			}
-			this.tokenizerCache[name] = def
+			var tokenizer = {
+				name: name,
+				def: def
+			}
+			this.tokenizerList.push(tokenizer)
+			this.tokenizerList[name] = tokenizer
 		},
 		
-		clearTokenizerCache: function() {
-			this.tokenizerCache = {}
+		clearTokenizerList: function() {
+			this.tokenizerList = []
 		},
 
 		// play loop
@@ -96,8 +101,8 @@ $(function() {
 		},
 
 		reset: function() {
-			// clear tokenizer cache
-			this.clearTokenizerCache()
+			// clear tokenizer list
+			this.clearTokenizerList()
 		},
 
 		play: function() {
@@ -126,6 +131,9 @@ $(function() {
 
 		_step: function() {
 			console.log('step ' + new Date())
+			this.tokenizerList.forEach(function(tokenizer) {
+				console.log('tokenizer', tokenizer.name)
+			})
 		}
 	}
 
