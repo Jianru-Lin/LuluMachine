@@ -43,6 +43,8 @@ $(function() {
 
 $(function() {
 
+	// player use the 'presentation' object
+
 	var player = window.player = {
 
 		// tokenizer management
@@ -130,10 +132,20 @@ $(function() {
 		},
 
 		_step: function() {
+			var self = this
 			console.log('step ' + new Date())
-			this.tokenizerList.forEach(function(tokenizer) {
-				console.log('tokenizer', tokenizer.name)
+
+			var c = self._txt[self._nextPos]
+			if (c === undefined) {
+				// return false means no more step
+				return false
+			}
+
+			var list = this.tokenizerList.map(function(tokenizer) {
+				return tokenizer.def(c)
 			})
+
+			// TODO
 		}
 	}
 
