@@ -209,7 +209,7 @@ $(function() {
 
 		// play loop
 
-		_loopSpan: 1000,
+		_loopSpan: 100,
 		_loopHandle: undefined,
 		_segment: undefined,
 		src: undefined,
