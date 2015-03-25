@@ -246,7 +246,18 @@ $(function() {
 		},
 
 		reset: function() {
-			// TODO
+			this._segment = undefined
+			this.pos = 0
+			this.finished = false
+			this.error = false
+
+			// clear ui
+			presentation.segmentList = []
+			presentation.len = 0
+			presentation.pos = 0
+
+			controlbar.noPlay = false
+			controlbar.noPause = true
 		},
 
 		play: function() {
@@ -260,6 +271,10 @@ $(function() {
 
 		pause: function() {
 			this._stopLoop()
+
+			// update ui
+			controlbar.noPlay = false
+			controlbar.noPause = true
 		},
 
 		_startLoop: function() {
@@ -355,6 +370,11 @@ $(function() {
 			},
 			onPause: function(e) {
 				player.pause()
+			},
+			onReset: function(e) {
+				if (confirm('要重置状态吗？')) {
+					player.reset()
+				}
 			}
 		}
 	})
