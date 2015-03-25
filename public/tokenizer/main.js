@@ -57,6 +57,8 @@ $(function() {
 		this.txt = txt
 		this.pos = pos
 		this.finished = false
+		this.winnerTokenizer = undefined
+		this.winnerTokenizerPos = undefined
 
 		this.tokenizerList = init(src)
 		
@@ -106,7 +108,7 @@ $(function() {
 		var self = this
 
 		// update presentation
-		
+
 		presentation.len = this.txt.length
 		presentation.pos = this.pos
 
@@ -126,29 +128,33 @@ $(function() {
 			this.segmentVM.indexList.push(['eof'])			
 		}
 
-		// do not move forward when we meet eof
-
-		if (!eof) {
-			++this.pos
-		}
-
 
 		// invoke every tokenizer
 
 		this.tokenizerList = this.tokenizerList.map(function(tokenizer) {
 			if (!tokenizer.finished) {
-				var v = tokenizer.fun(c, eof)
+				var v = tokenizer.fun(c, this.pos, eof)
 				if (typeof v === 'function') {
 					tokenizer.fun = v
 				}
 				else {
 					tokenizer.finished = true
 					tokenizer.result = v
+					// fill default value
+					if (tokenizer.result[0] === 'accept' && tokenizer.result[1] === undefined) {
+						tokenizer.result[1] = this.pos
+					}
 				}
 				showTokenizerStatus(tokenizer)
 			}
 			return tokenizer
-		})
+		}, this)
+
+		// do not move forward when we meet eof
+
+		if (!eof) {
+			++this.pos
+		}
 
 		// check if finished
 
@@ -159,6 +165,23 @@ $(function() {
 		this.finished = (eof || everyTokenizerFinished)
 
 		this.error = (eof && !everyTokenizerFinished)
+
+		// find winner tokenizer
+
+		if (this.finished && !this.error) {
+			this.winnerTokenizer = this.tokenizerList[0]
+			this.tokenizerList.forEach(function(tokenizer) {
+				if (tokenizer.result[0] === 'accept' && 
+					tokenizer.result[1] > this.winnerTokenizer.result[1]) {
+					this.winnerTokenizer = tokenizer
+				}
+			}, this)
+			this.winnerTokenizerPos = this.winnerTokenizer.result[1]
+		}
+		else {
+			this.winnerTokenizer = undefined
+			this.winnerTokenizerPos = undefined
+		}
 
 		function showTokenizerStatus(tokenizer) {
 			var segmentVM = self.segmentVM
@@ -288,9 +311,9 @@ $(function() {
 					this.error = true
 				}
 				// more ?
-				else if (_segment.pos < this.txt.length) {
+				else if ((_segment.winnerTokenizerPos + 1) < this.txt.length) {
 					// create a new segment
-					this._segment = new Segment(this.src, this.txt, _segment.pos)
+					this._segment = new Segment(this.src, this.txt, _segment.winnerTokenizerPos + 1)
 				}
 				// eof
 				else {
