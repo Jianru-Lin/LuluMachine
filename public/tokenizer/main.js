@@ -62,6 +62,9 @@ $(function() {
 		
 		// add an new segment to the UI
 
+		presentation.len = this.txt.length
+		presentation.pos = this.pos
+
 		presentation.segmentList.push({
 			charList: [],
 			indexList: [],
@@ -101,6 +104,11 @@ $(function() {
 
 	Segment.prototype.next = function() {
 		var self = this
+
+		// update presentation
+		
+		presentation.len = this.txt.length
+		presentation.pos = this.pos
 
 		// get current character, if it's undefined, it means EOF
 
