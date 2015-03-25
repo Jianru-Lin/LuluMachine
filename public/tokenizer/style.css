@@ -108,7 +108,12 @@
 	background: black;
 }
 
-.try-area .tokenizer .status .accept {
+.try-area .tokenizer .status .suspect {
+	background: #333;
+}
+
+.try-area .tokenizer .status .accept,
+.try-area .tokenizer .status .accept-plus {
 	background: #00C0CF;
 }
 

@@ -57,6 +57,7 @@ $(function() {
 		this.txt = txt
 		this.pos = pos
 		this.finished = false
+		this.failed = undefined
 		this.winnerTokenizer = undefined
 		this.winnerTokenizerPos = undefined
 
@@ -85,10 +86,10 @@ $(function() {
 		function init(src) {
 			var list = []
 			var fun = new Function('tokenizer', src)
-			fun(setupTokenizer)
+			fun(registerTokenizer)
 			return list
 
-			function setupTokenizer(name, fun) {
+			function registerTokenizer(name, fun) {
 				if (typeof name !== 'string' ||
 					typeof fun !== 'function') {
 					throw new Error('invalid arguments')
@@ -132,19 +133,40 @@ $(function() {
 		// invoke every tokenizer
 
 		this.tokenizerList = this.tokenizerList.map(function(tokenizer) {
-			if (!tokenizer.finished) {
-				var v = tokenizer.fun(c, this.pos, eof)
-				if (typeof v === 'function') {
-					tokenizer.fun = v
+			var tokenizerFinished = tokenizer.accept || tokenizer.reject
+			if (!tokenizerFinished) {
+				var status = tokenizer.fun(c, this.pos, eof)
+				switch (status[0]) {
+					// ['accept', pos]
+					case 'accept':
+						status[1] = status[1] !== undefined ? status[1] : this.pos
+						tokenizer.fun = null
+						break;
+					// ['accept+', fun]
+					case 'accept+':
+						if (typeof status[1] !== 'function') {
+							throw new Error('[Segment] invalid tokenizer status, function is missing')
+						}
+						tokenizer.fun = status[1]
+						break;
+					// ['reject']
+					case 'reject':
+						tokenizer.fun = null
+						break;
+					// ['suspect', fun]
+					case 'suspect':
+						if (typeof status[1] !== 'function') {
+							throw new Error('[Segment] invalid tokenizer status, function is missing')
+						}
+						tokenizer.fun = status[1]
+						break;
+					default:
+						throw new Error('[Segment] unknown tokenizer status - ' + status[0])
 				}
-				else {
-					tokenizer.finished = true
-					tokenizer.result = v
-					// fill default value
-					if (tokenizer.result[0] === 'accept' && tokenizer.result[1] === undefined) {
-						tokenizer.result[1] = this.pos
-					}
-				}
+
+				tokenizer[status[0]] = true
+				tokenizer.status = status
+
 				showTokenizerStatus(tokenizer)
 			}
 			return tokenizer
@@ -159,31 +181,46 @@ $(function() {
 		// check if finished
 
 		var everyTokenizerFinished = this.tokenizerList.every(function(tokenizer) {
-			return tokenizer.finished
+			return tokenizer.accept || tokenizer.reject
 		})
 
-		this.finished = (eof || everyTokenizerFinished)
+		// MUST: eof ==> everyTokenizerFinished
+		if (eof && !everyTokenizerFinished) {
+			throw new Error('[Segment] invalid tokenizer detected, did not finished on eof')
+		}
 
-		this.error = (eof && !everyTokenizerFinished)
+		if (everyTokenizerFinished) {
 
-		// find winner tokenizer
+			// finished
 
-		if (this.finished && !this.error) {
+			this.finished = true
+
+			// find winner tokenizer
+
 			this.winnerTokenizer = undefined
 			this.tokenizerList.forEach(function(tokenizer) {
-				if (tokenizer.result[0] !== 'accept') return
+				if (tokenizer.status[0] !== 'accept') return
 				if (this.winnerTokenizer === undefined) {
 					this.winnerTokenizer = tokenizer
 				}
-				else if (tokenizer.result[1] > this.winnerTokenizer.result[1]) {
-					this.winnerTokenizer = tokenizer
+				else {
+					var tokenizerPos = tokenizer.status[1]
+					var winnerTokenizerPos = this.winnerTokenizer.status[1]
+					if (tokenizerPos > winnerTokenizerPos) {
+						this.winnerTokenizer = tokenizer
+					}
 				}
 			}, this)
-			this.winnerTokenizerPos = this.winnerTokenizer.result[1]
-		}
-		else {
-			this.winnerTokenizer = undefined
-			this.winnerTokenizerPos = undefined
+
+			// failed - every tokenizer rejected ?
+
+			if (this.winnerTokenizer === undefined) {
+				// finished, but failed
+				this.failed = true
+			}
+			else {
+				this.winnerTokenizerPos = this.winnerTokenizer.status[1]
+			}
 		}
 
 		function showTokenizerStatus(tokenizer) {
@@ -197,8 +234,8 @@ $(function() {
 			}
 			if (tokenizerVM) {
 				// TODO: LL(k)
-				var status = tokenizer.finished ? tokenizer.result[0] : 'continue'
-				tokenizerVM.statusList.push(status)
+				var statusName = tokenizer.status[0].replace('+', '-plus')
+				tokenizerVM.statusList.push(statusName)
 			}
 		}
 	}
@@ -323,17 +360,17 @@ $(function() {
 
 			// finished ?
 			if (_segment.finished) {
-				// error ?
-				if (_segment.error) {
+				// failed ?
+				if (_segment.failed) {
 					this.finished = true
 					this.error = true
 				}
-				// more ?
+				// success and more ?
 				else if ((_segment.winnerTokenizerPos + 1) < this.txt.length) {
 					// create a new segment
 					this._segment = new Segment(this.src, this.txt, _segment.winnerTokenizerPos + 1)
 				}
-				// eof
+				// success and eof ?
 				else {
 					// finished
 					this.finished = true
