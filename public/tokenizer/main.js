@@ -120,7 +120,7 @@ $(function() {
 			if (!this._loopHandle) {
 				return
 			}
-			clearInterval(this._loopSpan)
+			clearInterval(this._loopHandle)
 			this._loopHandle = undefined
 		},
 
@@ -131,6 +131,10 @@ $(function() {
 
 	var controlbar = window.controlbar = new Vue({
 		el: '.controlbar',
+		data: {
+			noPlay: false,
+			noPause: true,
+		},
 		methods: {
 			onPlay: function(e) {
 				var src = srcEditor.getValue()
@@ -149,9 +153,16 @@ $(function() {
 				player.txt = txt
 				// notice: dont' change the nextPos
 				player.play()
+
+				// update button state
+				this.noPlay = true
+				this.noPause = false
 			},
 			onPause: function(e) {
-				alert('pause')
+				player.pause()
+				// update button state
+				this.noPlay = false
+				this.noPause = true
 			}
 		}
 	})

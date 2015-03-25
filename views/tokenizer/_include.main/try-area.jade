@@ -1,10 +1,10 @@
 .container-fluid
 	.btn-toolbar.controlbar
 		.btn-group
-			a.btn.btn-default(v-on='click: onPlay')
+			a.btn.btn-default(v-on='click: onPlay', v-class='disabled: noPlay')
 				i.fa.fa-play
 				span &nbspPlay
-			a.btn.btn-default.disabled
+			a.btn.btn-default(v-on='click: onPause', v-class='disabled: noPause')
 				i.fa.fa-pause
 				span &nbspPause
 		.btn-group
