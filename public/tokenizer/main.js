@@ -44,6 +44,15 @@ $(function() {
 $(function() {
 
 	function Segment(src, txt, pos) {
+		if (!src) {
+			throw new Error('[Segment] src not provided')
+		}
+		if (!txt) {
+			throw new Error('[Segment] txt not provided')			
+		}
+		if (pos < 0 || pos >= txt.length) {
+			throw new Error('[Segment] pos ' + pos + ' is out of range [0, ' + txt.length + ')')
+		}
 
 		this.txt = txt
 		this.pos = pos
@@ -51,13 +60,11 @@ $(function() {
 
 		this.tokenizerList = init(src)
 		
-		var c = txt[pos]
-
 		// add an new segment to the UI
 
 		presentation.segmentList.push({
-			charList: [c],
-			indexList: [pos],
+			charList: [],
+			indexList: [],
 			tokenizerList: this.tokenizerList.map(function(tokenizer) {
 				return {
 					name: tokenizer.name,
@@ -97,13 +104,32 @@ $(function() {
 
 		// get current character, if it's undefined, it means EOF
 
+		var eof = this.pos === this.txt.length
 		var c = this.txt[this.pos]
-	
+
+		// add new char
+
+		if (!eof) {
+			this.segmentVM.charList.push([c])
+			this.segmentVM.indexList.push([this.pos])
+		}
+		else {
+			this.segmentVM.charList.push([''])
+			this.segmentVM.indexList.push(['eof'])			
+		}
+
+		// do not move forward when we meet eof
+
+		if (!eof) {
+			++this.pos
+		}
+
+
 		// invoke every tokenizer
 
 		this.tokenizerList = this.tokenizerList.map(function(tokenizer) {
 			if (!tokenizer.finished) {
-				var v = tokenizer.fun(c)
+				var v = tokenizer.fun(c, eof)
 				if (typeof v === 'function') {
 					tokenizer.fun = v
 				}
@@ -118,9 +144,13 @@ $(function() {
 
 		// check if finished
 
-		this.finished = (c === undefined || this.tokenizerList.every(function(tokenizer) {
+		var everyTokenizerFinished = this.tokenizerList.every(function(tokenizer) {
 			return tokenizer.finished
-		}))
+		})
+
+		this.finished = (eof || everyTokenizerFinished)
+
+		this.error = (eof && !everyTokenizerFinished)
 
 		function showTokenizerStatus(tokenizer) {
 			var segmentVM = self.segmentVM
@@ -151,15 +181,47 @@ $(function() {
 		src: undefined,
 		txt: undefined,
 		pos: 0,
-		finished: false,
+		_finished: false,
+		_error: false,
+
+		get finished() {
+			return this._finished
+		},
+
+		set finished(v) {
+			this._finished = v
+			if (v) {
+				controlbar.noPlay = false
+				controlbar.noPause = true
+			}
+			else {
+				controlbar.noPlay = true
+				controlbar.noPause = false
+			}
+		},
+
+		get error() {
+			return this._error
+		},
+
+		set error(v) {
+			this._error = v
+			if (v) {
+				alert('出现错误')
+			}
+		},
 
 		reset: function() {
 			// TODO
 		},
 
 		play: function() {
+
 			// start loop
 			this._startLoop()
+
+			controlbar.noPlay = true
+			controlbar.noPause = false
 		},
 
 		pause: function() {
@@ -191,9 +253,16 @@ $(function() {
 		},
 
 		_step: function() {
-			if (this.finished) {
-				return
+			if (!this.src) {
+				throw new Error('[player] src?')
 			}
+			if (!this.txt) {
+				throw new Error('[player] txt?')
+			}
+			if (typeof this.pos !== 'number' || this.pos < 0 || this.pos >= this.txt.length) {
+				throw new Error('[player] invalid pos ' + this.pos)
+			}
+			
 
 			if (this._segment === undefined) {
 				this._segment = new Segment(this.src, this.txt, this.pos)
@@ -208,16 +277,18 @@ $(function() {
 				// error ?
 				if (_segment.error) {
 					this.finished = true
-					this.error = _segment.error
+					this.error = true
 				}
 				// more ?
-				else if (_segment.pos < (this.txt.length - 1)) {
+				else if (_segment.pos < this.txt.length) {
 					// create a new segment
 					this._segment = new Segment(this.src, this.txt, _segment.pos)
 				}
+				// eof
 				else {
 					// finished
 					this.finished = true
+					this.error = false
 				}
 			}
 		}
@@ -247,16 +318,9 @@ $(function() {
 				player.txt = txt
 				// notice: dont' change the nextPos
 				player.play()
-
-				// update button state
-				this.noPlay = true
-				this.noPause = false
 			},
 			onPause: function(e) {
 				player.pause()
-				// update button state
-				this.noPlay = false
-				this.noPause = true
 			}
 		}
 	})
