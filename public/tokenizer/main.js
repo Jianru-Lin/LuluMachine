@@ -282,7 +282,7 @@ $(function() {
 			}
 		},
 
-		reset: function() {
+		stop: function() {
 			this._segment = undefined
 			this.pos = 0
 			this.finished = false
@@ -408,9 +408,9 @@ $(function() {
 			onPause: function(e) {
 				player.pause()
 			},
-			onReset: function(e) {
-				if (confirm('要重置状态吗？')) {
-					player.reset()
+			onStop: function(e) {
+				if (confirm('要停止吗？')) {
+					player.stop()
 				}
 			}
 		}

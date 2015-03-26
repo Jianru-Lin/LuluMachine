@@ -7,23 +7,9 @@
 			a.btn.btn-default(v-on='click: onPause', v-class='disabled: noPause')
 				i.fa.fa-pause
 				span &nbspPause
-		.btn-group
-			a.btn.btn-default 
-				i.fa.fa-fast-backward
-				span &nbspFirst
-			a.btn.btn-default
-				i.fa.fa-step-backward
-				span &nbspPrev
-			a.btn.btn-default
-				i.fa.fa-step-forward
-				span &nbspNext
-			a.btn.btn-default
-				i.fa.fa-fast-forward
-				span &nbspLast
-		.btn-group
-			a.btn.btn-default(v-on='click: onReset')
-				i.fa.fa-refresh
-				span &nbspReset
+			a.btn.btn-default(v-on='click: onStop')
+				i.fa.fa-stop
+				span &nbspStop
 	.presentation
 		h3 Input Text (len={{len}}, pos={{pos}})
 		.segment-list
