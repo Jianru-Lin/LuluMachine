@@ -240,145 +240,119 @@ $(function() {
 		}
 	}
 
-	// player use the 'presentation' object
+	function Player(src, txt, pos) {
+		this._loopSpan = 100,
+		this._loopHandle = undefined,
+		this._segment = undefined,
+		this.src = src,
+		this.txt = txt,
+		this.pos = pos || 0,
+		this._finished = false,
+		this._error = false,
+		this.onStatusChanged = function(status) {}
+	}
 
-	var player = window.player = {
+	Player.prototype.play = function() {
+		// start loop
+		this._startLoop()
+		this._playingStatus()
+	}
 
-		// play loop
+	Player.prototype.stop = function() {
+		this._segment = undefined
+		this.pos = 0
+		this._stopLoop()
+		this._stoppedStatus('user')
+	}
 
-		_loopSpan: 100,
-		_loopHandle: undefined,
-		_segment: undefined,
-		src: undefined,
-		txt: undefined,
-		pos: 0,
-		_finished: false,
-		_error: false,
+	Player.prototype.pause = function() {
+		this._stopLoop()
+		this._pausedStatus()
+	}
 
-		get finished() {
-			return this._finished
-		},
+	Player.prototype._playingStatus = function() {
+		this.onStatusChanged({
+			status: 'playing'
+		})
+	}
 
-		set finished(v) {
-			this._finished = v
-			if (v) {
-				controlbar.noPlay = false
-				controlbar.noPause = true
+	Player.prototype._pausedStatus = function() {
+		this.onStatusChanged({
+			status: 'paused'
+		})
+	}
+
+	Player.prototype._stoppedStatus = function(reason, detail) {
+		if (reason !== 'eof' && reason !== 'user' && reason !== 'error') {
+			throw new Error('BUG: unknown reason "' + reason + '"')
+		}
+		this.onStatusChanged({
+			status, 'stopped.' + reason,
+			detail: detail
+		})
+	}
+
+	Player.prototype._startLoop = function() {
+		var self = this
+		if (this._loopHandle) {
+			return
+		}
+
+		this._loopHandle = setInterval(function() {
+			self._step()
+		}, this._loopSpan)
+	}
+
+	Player.prototype._stopLoop = function() {
+		if (!this._loopHandle) {
+			return
+		}
+		clearInterval(this._loopHandle)
+		this._loopHandle = undefined
+	}
+
+	Player.prototype._step = function() {
+		if (!this.src) {
+			throw new Error('[player] src?')
+		}
+		if (!this.txt) {
+			throw new Error('[player] txt?')
+		}
+		if (typeof this.pos !== 'number' || this.pos < 0 || this.pos >= this.txt.length) {
+			throw new Error('[player] invalid pos ' + this.pos)
+		}
+		
+
+		if (this._segment === undefined) {
+			this._segment = new Segment(this.src, this.txt, this.pos)
+		}
+
+		var _segment = this._segment
+
+		_segment.next()
+
+		// finished ?
+		if (_segment.finished) {
+			// failed ?
+			if (_segment.failed) {
+				this.finished = true
+				this.error = true
 			}
+			// success and more ?
+			else if ((_segment.winnerTokenizerPos + 1) < this.txt.length) {
+				// create a new segment
+				this._segment = new Segment(this.src, this.txt, _segment.winnerTokenizerPos + 1)
+			}
+			// success and eof ?
 			else {
-				controlbar.noPlay = true
-				controlbar.noPause = false
-			}
-		},
-
-		get error() {
-			return this._error
-		},
-
-		set error(v) {
-			this._error = v
-			if (v) {
-				alert('出现错误')
-			}
-		},
-
-		stop: function() {
-			this._segment = undefined
-			this.pos = 0
-			this.finished = false
-			this.error = false
-
-			// clear ui
-			presentation.segmentList = []
-			presentation.len = 0
-			presentation.pos = 0
-
-			controlbar.noPlay = false
-			controlbar.noPause = true
-		},
-
-		play: function() {
-
-			// start loop
-			this._startLoop()
-
-			controlbar.noPlay = true
-			controlbar.noPause = false
-		},
-
-		pause: function() {
-			this._stopLoop()
-
-			// update ui
-			controlbar.noPlay = false
-			controlbar.noPause = true
-		},
-
-		_startLoop: function() {
-			var self = this
-			if (this._loopHandle) {
-				return
-			}
-
-			this._loopHandle = setInterval(function() {
-				if (self.finished) {
-					self._stopLoop()
-				}
-				else {
-					self._step()
-				}
-			}, this._loopSpan)
-		},
-
-		_stopLoop: function() {
-			if (!this._loopHandle) {
-				return
-			}
-			clearInterval(this._loopHandle)
-			this._loopHandle = undefined
-		},
-
-		_step: function() {
-			if (!this.src) {
-				throw new Error('[player] src?')
-			}
-			if (!this.txt) {
-				throw new Error('[player] txt?')
-			}
-			if (typeof this.pos !== 'number' || this.pos < 0 || this.pos >= this.txt.length) {
-				throw new Error('[player] invalid pos ' + this.pos)
-			}
-			
-
-			if (this._segment === undefined) {
-				this._segment = new Segment(this.src, this.txt, this.pos)
-			}
-
-			var _segment = this._segment
-
-			_segment.next()
-
-			// finished ?
-			if (_segment.finished) {
-				// failed ?
-				if (_segment.failed) {
-					this.finished = true
-					this.error = true
-				}
-				// success and more ?
-				else if ((_segment.winnerTokenizerPos + 1) < this.txt.length) {
-					// create a new segment
-					this._segment = new Segment(this.src, this.txt, _segment.winnerTokenizerPos + 1)
-				}
-				// success and eof ?
-				else {
-					// finished
-					this.finished = true
-					this.error = false
-				}
+				// finished
+				this.finished = true
+				this.error = false
 			}
 		}
 	}
+
+	var player = undefined
 
 	var controlbar = window.controlbar = new Vue({
 		el: '.controlbar',
@@ -388,6 +362,7 @@ $(function() {
 		},
 		methods: {
 			onPlay: function(e) {
+				var self = this
 				var src = srcEditor.getValue()
 				if (!src) {
 					alert('引擎源代码为空！ Engine is empty.')
@@ -400,15 +375,51 @@ $(function() {
 					return
 				}
 
-				player.src = src
-				player.txt = txt
-				// notice: dont' change the nextPos
-				player.play()
+				if (!player) {
+					player = new Player(src, txt, 0)
+					player.onStatusChanged = function(to) {
+						switch (to.status) {
+							case 'playing':
+								self.noPlay = true
+								self.noPause = false
+								self.noStop = true
+								break
+							case 'paused':
+								self.noPlay = false
+								self.noPause = true
+								self.noStop = false
+								break
+							case 'stopped.eof':
+								break
+							case 'stopped.error':
+								break
+							case 'stopped.user':
+								self.noPlay = false
+								self.noPause = true
+								self.noStop = true
+								// clear UI
+								presentation.len = 0
+								presentation.pos = 0
+								presentation.segmentList = []
+								// drop player
+								player.onStatusChanged = undefined
+								player = undefined
+								break
+							default:
+								throw new Error('unknown player state: ' + to.status)
+						}
+					}
+				}
+				else {
+					player.play()
+				}
 			},
 			onPause: function(e) {
+				if (!player) throw new Error('BUG: player not exists but \"pause\"" button is enabled')
 				player.pause()
 			},
 			onStop: function(e) {
+				if (!player) throw new Error('BUG: player not exists but \"pause\"" button is enabled')
 				if (confirm('要停止吗？')) {
 					player.stop()
 				}

@@ -7,7 +7,7 @@
 			a.btn.btn-default(v-on='click: onPause', v-class='disabled: noPause')
 				i.fa.fa-pause
 				span &nbspPause
-			a.btn.btn-default(v-on='click: onStop')
+			a.btn.btn-default(v-on='click: onStop', v-class='disabled: noStop')
 				i.fa.fa-stop
 				span &nbspStop
 	.presentation
