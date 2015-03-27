@@ -43,6 +43,176 @@ $(function() {
 
 $(function() {
 
+	// CharPlayer
+
+	function CharPlayer(tokenizerList) {
+
+		// BUG check
+
+		if (!tokenizerList || tokenizerList.length < 1) {
+			throw new Error('[CharPlayer] BUG: invalid arguments, tokenizerList must be provided and not empty')
+		}
+
+		this.tokenizerList = tokenizerList
+
+		// every step, tokenizer can return:
+		// -------------------------------------------------
+		// [AcceptCurrentChar?, Then?(opt), Arg?(opt)]
+		// AcceptCurrentChar? :: 'yes' | 'no'
+		// Then? :: 'success' | 'failure'
+		// Args? :: number
+		// -------------------------------------------------
+		// expamles:
+		// ['no']					=> shortcut for ['no', 'failure'] means reject current char and entire tokenizer is failed
+		// ['no', 'success']		=> shortcut for ['no', 'success', -1] means reject current char but all the chars from {{head}} to {{current-1}} is successfully
+		// ['no', 'success', -n]	=> means reject current char but all the chars from {{head}} to {{current-n}} is successfully
+		// ['yes', fun]				=> means accept current char and continue
+		// ['yes', 'success']		=> means accept current char and successfully
+		// -------------------------------------------------
+		// so we can meet such an arrary likes below
+		// [['yes'], ['yes'], ['yes', 'success']],
+		// [['yes'], ['yes'], ['no', 'success', 12]],
+		// [['yes'], ['yes'], ['no', 'success']],
+		// [['yes'], ['no']]
+		this.tokenizerStatusHistory = this.tokenizerList.map(function() {
+			return []
+		})
+	}
+
+	CharPlayer.prototype.play = function(c, pos, eof) {
+
+		// BUG check
+
+		if (c === undefined && !eof) {
+			throw new Error('[CharPlayer] BUG: invalid arguments, c is undefined but eof is not true ')
+		}
+		else if (c !== undefined && eof) {
+			throw new Error('[CharPlayer] BUG: invalid arguments, c is not undefined but eof is true')
+		}
+		if (pos < 0) {
+			throw new Error('[CharPlayer] BUG: invalid arguments, pos < 0')
+		}
+
+		// invoke every tokenizer
+
+		if (this.tokenizerStatusHistory.length < 1) {
+			// the first time to invoke tokenizer
+			this.tokenizerList.forEach(function(tokenizer) {
+				try {
+					var status = tokenizer.fun(c, pos, eof)					
+				}
+				catch (err) {
+					// this function must throw an exception
+					this.report.errorOnExecTokenizer(tokenizer, err)
+				}
+
+				// BUG check for returned status
+				// TODO
+
+				// status[0] must be 'yes' or 'no'
+				// when status[0] is 'yes', status[1] must be 'success' or a function
+				// when status[0] is 'no', status[1] can be omitted
+				// but if status[1] exists, it must be 'success' or 'failure'
+				// then if status[1] is 'success', status[2] can be omitted or an negtive number (non-zero)
+
+				var valid = false
+
+				if (Array.isArray(status)) {
+					if (status.length > 0) {
+						if (status[0] === 'yes') {
+							if (status.length === 2) {
+								if (status[1] === 'success' || typeof status[1] === 'function') {
+									// ['yes', 'success']
+									// ['yes', function() {}]
+									valid = true
+								}
+							}
+						}
+						else if (status[0] === 'no') {
+							if (status.length === 1) {
+								// ['no']
+								valid = true
+							}
+							else if (status[1] === 'success') {
+								if (status.length === 2) {
+									// ['no', 'success']
+									valid = true
+								}
+								else if (status.length === 3) {
+									if (typeof status[2] === 'number')
+									// ['no', 'success', number]
+									valid = true
+								}
+							}
+						}
+					}
+				}
+
+				if (!valid) {			
+					// this function must throw an exception
+					this.report.invalidStatusReturnedFromTokenizer(tokenizer, status)
+				}
+			})
+		}
+
+		this.tokenizerList = this.tokenizerList.map(function(tokenizer) {
+			var tokenizerFinished = tokenizer.accept || tokenizer.reject
+			if (!tokenizerFinished) {
+				var status = tokenizer.fun(c, this.pos, eof)
+				switch (status[0]) {
+					// ['accept', pos]
+					case 'accept':
+						status[1] = status[1] !== undefined ? status[1] : this.pos
+						tokenizer.fun = null
+						break;
+					// ['accept+', fun]
+					case 'accept+':
+						if (typeof status[1] !== 'function') {
+							throw new Error('[Segment] invalid tokenizer status, function is missing')
+						}
+						tokenizer.fun = status[1]
+						break;
+					// ['reject']
+					case 'reject':
+						tokenizer.fun = null
+						break;
+					// ['suspect', fun]
+					case 'suspect':
+						if (typeof status[1] !== 'function') {
+							throw new Error('[Segment] invalid tokenizer status, function is missing')
+						}
+						tokenizer.fun = status[1]
+						break;
+					default:
+						throw new Error('[Segment] unknown tokenizer status - ' + status[0])
+				}
+
+				tokenizer[status[0]] = true
+				tokenizer.status = status
+
+				showTokenizerStatus(tokenizer)
+			}
+			return tokenizer
+		}, this)
+	}
+
+	CharPlayer.prototype.report = {
+		errorOnExecTokenizer: function(tokenizer, err) {
+			var txt = 'Error throwed on execution tokenizer\n'
+					+ '[name]\n' + tokenizer.name + '\n'
+					+ '[error]\n' + err.toString() + '\n'
+			throw new Error(txt)
+		},
+		invalidStatusReturnedFromTokenizer: function(tokenizer, status) {
+			var txt = 'Invalid status returned from tokenizer\n'
+					+ '[name]\n' + tokenizer.name + '\n'
+					+ '[status]\n' + JSON.stringify(status)) + '\n'
+			throw new Error(txt)
+		}
+	}
+
+	// TokenPlayer
+
 	function Segment(src, txt, pos) {
 		if (!src) {
 			throw new Error('[Segment] src not provided')
@@ -240,6 +410,20 @@ $(function() {
 		}
 	}
 
+	Segment.prototype.play = function() {
+
+	}
+
+	Segment.prototype.pause = function() {
+
+	}
+
+	Segment.prototype.stop = function() {
+
+	}
+
+	// TextPlayer
+
 	function Player(src, txt, pos) {
 		this._loopSpan = 100,
 		this._loopHandle = undefined,
@@ -329,7 +513,7 @@ $(function() {
 
 		var _segment = this._segment
 
-		_segment.next()
+		var status = _segment.next()
 
 		// finished ?
 		if (_segment.finished) {
