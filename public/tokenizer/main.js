@@ -62,41 +62,82 @@ $(function() {
 	// [['yes'], ['yes'], ['no', 'success', 12]],
 	// [['yes'], ['yes'], ['no', 'success']],
 	// [['yes'], ['no']]
-	function playTokenizer(tokenizer, c, pos, eof) {
+	function Tokenizer(name, startTransitionFunction) {
+		
+		if (typeof startTransitionFunction !== 'function') {
+			throw new Error('[Tokenizer] BUG: invalid arguments, startTransitionFunction is not function')			
+		}
+
+		this.name = name
+		this.status = undefined
+		this.nextTransitionFunction = startTransitionFunction
+	}
+
+	Tokenizer.prototype.updateStatus = function(c, pos, eof) {
+		var self = this
+
+		// we can not update status if it's finished
+		// so we need check the status and throw an error if failed
+
+		checkCanUpdateStatusOrNot()
 
 		// BUG check
 
-		if (!tokenizer) {
-			throw new Error('[playTokenizer] BUG: invalid arguments, tokenizer is not provided')
-		}
-		else if (typeof tokenizer.fun !== 'function') {
-			throw new Error('[playTokenizer] BUG: invalid arguments, tokenizer.fun is not function')			
-		}
-
 		if (c === undefined && !eof) {
-			throw new Error('[playTokenizer] BUG: invalid arguments, c is undefined but eof is not true ')
+			throw new Error('[Tokenizer({{name}})] BUG: invalid arguments, c is undefined but eof is not true'.replace('{{name}}', self.name))
 		}
 		else if (c !== undefined && eof) {
-			throw new Error('[playTokenizer] BUG: invalid arguments, c is not undefined but eof is true')
+			throw new Error('[Tokenizer({{name}})] BUG: invalid arguments, c is not undefined but eof is true'.replace('{{name}}', self.name))
 		}
 		if (pos < 0) {
-			throw new Error('[playTokenizer] BUG: invalid arguments, pos < 0')
+			throw new Error('[Tokenizer({{name}})] BUG: invalid arguments, pos < 0'.replace('{{name}}', self.name))
 		}
 
 		try {
-			var status = tokenizer.fun(c, pos, eof)
+			var status = self.nextTransitionFunction(c, pos, eof)
 		}
 		catch (err) {
 			// this function must throw an exception
-			throwErrorOnExecTokenizer(tokenizer, err)
+			throwErrorThrowedOnExecution(err)
 		}
 
 		// BUG check for returned status
+
 		checkStatus(status)
 
-		return status
+		// set nextTransitionFunction
+
+		if (status[0] === 'yes' && typeof status[1] === 'function') {
+			self.nextTransitionFunction = status[1]
+		}
+		else {
+			self.nextTransitionFunction = undefined
+		}
+
+		// remember the status
+
+		self.status = status
 
 		// throw a exception when failed
+
+		function checkCanUpdateStatusOrNot() {
+			if (self.status === undefined) {
+				// there isn't any state transition before
+				// it's ok
+			}
+			else if (self.status[0] === 'yes' && typeof self.status[1] === 'function') {
+				// it's ok
+			}
+			else {
+				// no, we can not update status any more
+				var txt = '[Tokenizer({{name}})] BUG: you can not update status now'
+						  .replace('{{name}}', self.name)
+				throw new Error(txt)
+			}
+		}
+
+		// throw a exception when failed
+
 		function checkStatus(status) {
 			
 			// status[0] must be 'yes' or 'no'
@@ -140,26 +181,48 @@ $(function() {
 
 			if (!valid) {			
 				// this function must throw an exception
-				throwInvalidStatusReturnedFromTokenizer(tokenizer, status)
+				throwInvalidStatusReturned(status)
 			}
 		}
 
-		function throwErrorOnExecTokenizer(tokenizer, err) {
-			var txt = 'Error throwed on execution tokenizer\n'
-					+ '[name]\n' + tokenizer.name + '\n'
-					+ '[error]\n' + err.toString() + '\n'
+		function throwErrorThrowedOnExecution(err) {
+			var txt = '[Tokenizer({{name}})] Error throwed on execution: {{error}}'
+					  .replace('{{name}}', self.name)
+					  .replace('{{error}}', err.toString())
 			throw new Error(txt)
 		}
 
-		function throwInvalidStatusReturnedFromTokenizer(tokenizer, status) {
-			var txt = 'Invalid status returned from tokenizer\n'
-					+ '[name]\n' + tokenizer.name + '\n'
-					+ '[status]\n' + JSON.stringify(status)) + '\n'
+		function throwInvalidStatusReturned(status) {
+			var txt = '[Tokenizer({{name}})] Invalid status returned: {{status}}'
+					  .replace('{{name}}', self.name)
+					  .replace('{{status}}', JSON.stringify(status)))
 			throw new Error(txt)
 		}
 	}
 
+	Tokenizer.prototype.isFailureStatus = function() {
+		if (this.status === undefined) return false
+		else if (this.status[1] === 'no' && this.status.length === 1) return true
+		else return false
+	}
+
+	Tokenizer.prototype.isSuccessStatus = function() {
+		if (this.status === undefined) return false
+		else if (this.status[1] === 'success') return true
+		else return false
+	}
+
+	Tokenizer.prototype.isContinueStatus = function() {
+		if (this.status === undefined) return true
+		else if (this.status[0] === 'yes' && typeof this.status[1] === 'function') return true
+		else return false
+	}
+
 	// return: [statusList]
+	// notice,
+	// tokenizerList is an array of tokenizer
+	// it must not be empty, but the element in it can be undefined
+	// this is useful feature to reduce the complexity of the algorithm in other part
 	function playTokenizerList(tokenizerList, c, pos, eof) {
 
 		// BUG check
@@ -173,12 +236,28 @@ $(function() {
 		// this is low performance we wish to fix this later
 
 		var statusList = tokenizerList.map(function(tokenizer) {
-			return playTokenizer(tokenizer, c, pos, eof)
+			if (tokenizer) {
+				return playTokenizer(tokenizer, c, pos, eof)
+			}
+			else {
+				// tokenizer can be undefined
+				// this is useful, in this case, we just return undefined
+				return undefined
+			}
 		})
 	}
 
-	// 
+	// return
+	// {
+	// 	tokenizerList: [], 
+	// 	statusList: [], 
+	// 	success: true | false,
+	// 	failure: true | false
+	// }
 	function playSegment(tokenizerList, text, pos) {
+
+		// do not check tokenizerList cause playTokenizerList will do
+		// but we do need to check text and pos
 
 		if (!text) {
 			throw new Error('[playSegment] BUG: invalid arguments, text must be provided and not empty')
@@ -188,10 +267,9 @@ $(function() {
 		}
 
 		var c = text[pos]
-		var eof = pos === text.length
+		var eof = (pos === text.length)
 		var statusList = playTokenizerList(tokenizerList, c, pos, eof)
 
-		// 
 		var done = true
 		var winnerStatus
 		var error
@@ -203,217 +281,6 @@ $(function() {
 	}
 
 	function playText(tokenizerList, text) {
-
-	}
-
-	// TokenPlayer
-
-	function Segment(src, txt, pos) {
-		if (!src) {
-			throw new Error('[Segment] src not provided')
-		}
-		if (!txt) {
-			throw new Error('[Segment] txt not provided')			
-		}
-		if (pos < 0 || pos >= txt.length) {
-			throw new Error('[Segment] pos ' + pos + ' is out of range [0, ' + txt.length + ')')
-		}
-
-		this.txt = txt
-		this.pos = pos
-		this.finished = false
-		this.failed = undefined
-		this.winnerTokenizer = undefined
-		this.winnerTokenizerPos = undefined
-
-		this.tokenizerList = init(src)
-		
-		// add an new segment to the UI
-
-		presentation.len = this.txt.length
-		presentation.pos = this.pos
-
-		presentation.segmentList.push({
-			charList: [],
-			indexList: [],
-			tokenizerList: this.tokenizerList.map(function(tokenizer) {
-				return {
-					name: tokenizer.name,
-					statusList: []
-				}
-			})
-		})
-
-		// remember the segmentVM
-
-		this.segmentVM = presentation.segmentList[presentation.segmentList.length - 1]
-
-		function init(src) {
-			var list = []
-			var fun = new Function('tokenizer', src)
-			fun(registerTokenizer)
-			return list
-
-			function registerTokenizer(name, fun) {
-				if (typeof name !== 'string' ||
-					typeof fun !== 'function') {
-					throw new Error('invalid arguments')
-				}
-				var tokenizer = {
-					name: name,
-					fun: fun,
-					finished: false
-				}
-				list.push(tokenizer)
-				list[name] = tokenizer
-			}
-		}
-	}
-
-	Segment.prototype.next = function() {
-		var self = this
-
-		// update presentation
-
-		presentation.len = this.txt.length
-		presentation.pos = this.pos
-
-		// get current character, if it's undefined, it means EOF
-
-		var eof = this.pos === this.txt.length
-		var c = this.txt[this.pos]
-
-		// add new char
-
-		if (!eof) {
-			this.segmentVM.charList.push([c])
-			this.segmentVM.indexList.push([this.pos])
-		}
-		else {
-			this.segmentVM.charList.push([''])
-			this.segmentVM.indexList.push(['eof'])			
-		}
-
-
-		// invoke every tokenizer
-
-		this.tokenizerList = this.tokenizerList.map(function(tokenizer) {
-			var tokenizerFinished = tokenizer.accept || tokenizer.reject
-			if (!tokenizerFinished) {
-				var status = tokenizer.fun(c, this.pos, eof)
-				switch (status[0]) {
-					// ['accept', pos]
-					case 'accept':
-						status[1] = status[1] !== undefined ? status[1] : this.pos
-						tokenizer.fun = null
-						break;
-					// ['accept+', fun]
-					case 'accept+':
-						if (typeof status[1] !== 'function') {
-							throw new Error('[Segment] invalid tokenizer status, function is missing')
-						}
-						tokenizer.fun = status[1]
-						break;
-					// ['reject']
-					case 'reject':
-						tokenizer.fun = null
-						break;
-					// ['suspect', fun]
-					case 'suspect':
-						if (typeof status[1] !== 'function') {
-							throw new Error('[Segment] invalid tokenizer status, function is missing')
-						}
-						tokenizer.fun = status[1]
-						break;
-					default:
-						throw new Error('[Segment] unknown tokenizer status - ' + status[0])
-				}
-
-				tokenizer[status[0]] = true
-				tokenizer.status = status
-
-				showTokenizerStatus(tokenizer)
-			}
-			return tokenizer
-		}, this)
-
-		// do not move forward when we meet eof
-
-		if (!eof) {
-			++this.pos
-		}
-
-		// check if finished
-
-		var everyTokenizerFinished = this.tokenizerList.every(function(tokenizer) {
-			return tokenizer.accept || tokenizer.reject
-		})
-
-		// MUST: eof ==> everyTokenizerFinished
-		if (eof && !everyTokenizerFinished) {
-			throw new Error('[Segment] invalid tokenizer detected, did not finished on eof')
-		}
-
-		if (everyTokenizerFinished) {
-
-			// finished
-
-			this.finished = true
-
-			// find winner tokenizer
-
-			this.winnerTokenizer = undefined
-			this.tokenizerList.forEach(function(tokenizer) {
-				if (tokenizer.status[0] !== 'accept') return
-				if (this.winnerTokenizer === undefined) {
-					this.winnerTokenizer = tokenizer
-				}
-				else {
-					var tokenizerPos = tokenizer.status[1]
-					var winnerTokenizerPos = this.winnerTokenizer.status[1]
-					if (tokenizerPos > winnerTokenizerPos) {
-						this.winnerTokenizer = tokenizer
-					}
-				}
-			}, this)
-
-			// failed - every tokenizer rejected ?
-
-			if (this.winnerTokenizer === undefined) {
-				// finished, but failed
-				this.failed = true
-			}
-			else {
-				this.winnerTokenizerPos = this.winnerTokenizer.status[1]
-			}
-		}
-
-		function showTokenizerStatus(tokenizer) {
-			var segmentVM = self.segmentVM
-			var tokenizerVM
-			for (var i = 0, len = segmentVM.tokenizerList.length; i < len; ++i) {
-				if (segmentVM.tokenizerList[i].name === tokenizer.name) {
-					tokenizerVM = segmentVM.tokenizerList[i]
-					break
-				}
-			}
-			if (tokenizerVM) {
-				// TODO: LL(k)
-				var statusName = tokenizer.status[0].replace('+', '-plus')
-				tokenizerVM.statusList.push(statusName)
-			}
-		}
-	}
-
-	Segment.prototype.play = function() {
-
-	}
-
-	Segment.prototype.pause = function() {
-
-	}
-
-	Segment.prototype.stop = function() {
 
 	}
 
