@@ -43,31 +43,44 @@ $(function() {
 
 $(function() {
 
-	// TokenizerPlayer
-
-	function TokenizerPlayer(tokenizer) {
+	// every step, tokenizer can return:
+	// -------------------------------------------------
+	// [AcceptCurrentChar?, Then?(opt), Arg?(opt)]
+	// AcceptCurrentChar? :: 'yes' | 'no'
+	// Then? :: 'success' | 'failure'
+	// Args? :: number
+	// -------------------------------------------------
+	// expamles:
+	// ['no']					=> shortcut for ['no', 'failure'] means reject current char and entire tokenizer is failed
+	// ['no', 'success']		=> shortcut for ['no', 'success', -1] means reject current char but all the chars from {{head}} to {{current-1}} is successfully
+	// ['no', 'success', -n]	=> means reject current char but all the chars from {{head}} to {{current-n}} is successfully
+	// ['yes', fun]				=> means accept current char and continue
+	// ['yes', 'success']		=> means accept current char and successfully
+	// -------------------------------------------------
+	// so we can meet such an sequence likes below
+	// [['yes'], ['yes'], ['yes', 'success']],
+	// [['yes'], ['yes'], ['no', 'success', 12]],
+	// [['yes'], ['yes'], ['no', 'success']],
+	// [['yes'], ['no']]
+	function playTokenizer(tokenizer, c, pos, eof) {
 
 		// BUG check
 
 		if (!tokenizer) {
-			throw new Error('[TokenizerPlayer] BUG: invalid arguments, tokenizer is not provided')
+			throw new Error('[playTokenizer] BUG: invalid arguments, tokenizer is not provided')
 		}
-
-		this.statusHistory = []
-	}
-
-	TokenizerPlayer.prototype.play = function(c, pos, eof) {
-
-		// BUG check
+		else if (typeof tokenizer.fun !== 'function') {
+			throw new Error('[playTokenizer] BUG: invalid arguments, tokenizer.fun is not function')			
+		}
 
 		if (c === undefined && !eof) {
-			throw new Error('[CharPlayer] BUG: invalid arguments, c is undefined but eof is not true ')
+			throw new Error('[playTokenizer] BUG: invalid arguments, c is undefined but eof is not true ')
 		}
 		else if (c !== undefined && eof) {
-			throw new Error('[CharPlayer] BUG: invalid arguments, c is not undefined but eof is true')
+			throw new Error('[playTokenizer] BUG: invalid arguments, c is not undefined but eof is true')
 		}
 		if (pos < 0) {
-			throw new Error('[CharPlayer] BUG: invalid arguments, pos < 0')
+			throw new Error('[playTokenizer] BUG: invalid arguments, pos < 0')
 		}
 
 		try {
@@ -80,9 +93,6 @@ $(function() {
 
 		// BUG check for returned status
 		checkStatus(status)
-
-		// save status in history
-		this.history.push(status)
 
 		return status
 
@@ -149,92 +159,51 @@ $(function() {
 		}
 	}
 
-	// TokenizerListPlayer
+	// return: [statusList]
+	function playTokenizerList(tokenizerList, c, pos, eof) {
 
-	function TokenizerListPlayer(tokenizerList) {
 		// BUG check
 
 		if (!tokenizerList || tokenizerList.length < 1) {
-			throw new Error('[TokenizerListPlayer] BUG: invalid arguments, tokenizerList must be provided and not empty')
+			throw new Error('[playTokenizerList] BUG: invalid arguments, tokenizerList must be provided and not empty')
 		}
 
-		this.tokenizerList = tokenizerList
+		// we don't check other arguments here
+		// underlying TokenizerPlayer will check
+		// this is low performance we wish to fix this later
+
+		var statusList = tokenizerList.map(function(tokenizer) {
+			return playTokenizer(tokenizer, c, pos, eof)
+		})
 	}
 
-	TokenizerListPlayer.prototype.play = function(c, pos, eof) {
-		// TODO
-	}
+	// 
+	function playSegment(tokenizerList, text, pos) {
 
-	// CharPlayer
+		if (!text) {
+			throw new Error('[playSegment] BUG: invalid arguments, text must be provided and not empty')
+		}
+		if (typeof pos !== 'number' || pos < 0 || pos >= text.length) {
+			throw new Error('[playSegment] BUG: invalid arguments, pos must be number and in range [0, ' + text.length '), current is ' + pos)
+		}
 
-	// every step, tokenizer can return:
-	// -------------------------------------------------
-	// [AcceptCurrentChar?, Then?(opt), Arg?(opt)]
-	// AcceptCurrentChar? :: 'yes' | 'no'
-	// Then? :: 'success' | 'failure'
-	// Args? :: number
-	// -------------------------------------------------
-	// expamles:
-	// ['no']					=> shortcut for ['no', 'failure'] means reject current char and entire tokenizer is failed
-	// ['no', 'success']		=> shortcut for ['no', 'success', -1] means reject current char but all the chars from {{head}} to {{current-1}} is successfully
-	// ['no', 'success', -n]	=> means reject current char but all the chars from {{head}} to {{current-n}} is successfully
-	// ['yes', fun]				=> means accept current char and continue
-	// ['yes', 'success']		=> means accept current char and successfully
-	// -------------------------------------------------
-	// so we can meet such an arrary likes below
-	// [['yes'], ['yes'], ['yes', 'success']],
-	// [['yes'], ['yes'], ['no', 'success', 12]],
-	// [['yes'], ['yes'], ['no', 'success']],
-	// [['yes'], ['no']]
-	function CharPlayer(tokenizerList) {
+		var c = text[pos]
+		var eof = pos === text.length
+		var statusList = playTokenizerList(tokenizerList, c, pos, eof)
 
-		this.tmpList = []
-
-		this.tokenizerStatusHistory = []
-	}
-
-	CharPlayer.prototype.play = function(c, pos, eof) {
-
-
-		this.tokenizerList = this.tokenizerList.map(function(tokenizer) {
-			var tokenizerFinished = tokenizer.accept || tokenizer.reject
-			if (!tokenizerFinished) {
-				var status = tokenizer.fun(c, this.pos, eof)
-				switch (status[0]) {
-					// ['accept', pos]
-					case 'accept':
-						status[1] = status[1] !== undefined ? status[1] : this.pos
-						tokenizer.fun = null
-						break;
-					// ['accept+', fun]
-					case 'accept+':
-						if (typeof status[1] !== 'function') {
-							throw new Error('[Segment] invalid tokenizer status, function is missing')
-						}
-						tokenizer.fun = status[1]
-						break;
-					// ['reject']
-					case 'reject':
-						tokenizer.fun = null
-						break;
-					// ['suspect', fun]
-					case 'suspect':
-						if (typeof status[1] !== 'function') {
-							throw new Error('[Segment] invalid tokenizer status, function is missing')
-						}
-						tokenizer.fun = status[1]
-						break;
-					default:
-						throw new Error('[Segment] unknown tokenizer status - ' + status[0])
-				}
-
-				tokenizer[status[0]] = true
-				tokenizer.status = status
-
-				showTokenizerStatus(tokenizer)
+		// 
+		var done = true
+		var winnerStatus
+		var error
+		statusList.forEach(function(status, i) {
+			if (done && status[0] === 'success' && typeof status[1] === 'function') {
+				done = false
 			}
-			return tokenizer
-		}, this)
+		})
+	}
+
+	function playText(tokenizerList, text) {
+
 	}
 
 	// TokenPlayer
