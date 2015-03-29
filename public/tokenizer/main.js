@@ -345,8 +345,10 @@ $(function() {
 			throw new Error('[Segment] BUG: invalid result return from tokenizerGroup.updateStatus()')
 		}
 		// update ui
+		
 		this._segmentVM.charList.push(c)
 		this._segmentVM.indexList.push(pos)
+
 		statusUpdatedTokenizerList.forEach(function(tokenizer) {
 			var tokenizerVM = this.findTokenizerVM[tokenizer.name]
 			tokenizerVM.statusList.push(tokenizer.status[0])
@@ -379,7 +381,7 @@ $(function() {
 
 		var self = this
 
-		this._loopSpan = 1000
+		this._loopSpan = 50
 		this._loopHandle = undefined
 		this._segment = undefined
 		this.src = src
@@ -482,6 +484,10 @@ $(function() {
 			throw new Error('[Player] BUG: impossible status')
 		}
 
+		// update ui
+		presentation.pos = pos
+		presentation.len = this.txt.length
+
 		try {
 			this._segment.updateStatus(c, pos, eof)
 		}
@@ -573,6 +579,11 @@ $(function() {
 				}
 
 				if (!player) {
+					// clear UI
+					presentation.len = 0
+					presentation.pos = 0
+					presentation.segmentList = []
+
 					player = new Player(src, txt, 0)
 					player.onStatusChanged = function(to) {
 						switch (to.status) {
