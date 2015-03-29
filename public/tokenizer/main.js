@@ -210,7 +210,7 @@ $(function() {
 
 	Tokenizer.prototype.isFailureStatus = function() {
 		if (this.status === undefined) return false
-		else if (this.status[1] === 'no' && this.status.length === 1) return true
+		else if (this.status[0] === 'no' && this.status.length === 1) return true
 		else return false
 	}
 
@@ -259,6 +259,7 @@ $(function() {
 				this.failureList.push(tokenizer)
 			}
 			else {
+				debugger
 				throw new Error('[TokenizerGroup] BUG: impossible tokenizer status')
 			}
 		}, this)
@@ -328,7 +329,7 @@ $(function() {
 					name: tokenizer.name,
 					statusList: []
 				}
-				this.findTokenizerVM[tokenizer] = _
+				this.findTokenizerVM[tokenizer.name] = _
 				return _
 			}, this)
 		}
@@ -347,7 +348,7 @@ $(function() {
 		this._segmentVM.charList.push(c)
 		this._segmentVM.indexList.push(pos)
 		statusUpdatedTokenizerList.forEach(function(tokenizer) {
-			var tokenizerVM = this.findTokenizerVM[tokenizer]
+			var tokenizerVM = this.findTokenizerVM[tokenizer.name]
 			tokenizerVM.statusList.push(tokenizer.status[0])
 		}, this)
 	}
@@ -633,9 +634,16 @@ $(function() {
 				player.pause()
 			},
 			onStop: function(e) {
-				if (!player) throw new Error('BUG: player not exists but \"pause\"" button is enabled')
 				if (confirm('要停止吗？')) {
-					player.stop()
+					if (player) {
+						player.onStatusChanged = undefined
+						player.stop()
+						player = undefined
+					}
+					// clear UI
+					presentation.len = 0
+					presentation.pos = 0
+					presentation.segmentList = []
 				}
 			}
 		}
