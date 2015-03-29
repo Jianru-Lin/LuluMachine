@@ -42,8 +42,12 @@
 .try-area .btn-toolbar {
 	padding-top: 15px;
 	position: fixed;
-	left: 15px;
-	bottom: 15px;
+	left: 0px;
+	right: 0px;
+	bottom: 0px;
+	background: #eee;
+	padding-left: 15px;
+	border-top: 1px solid #D7D7D7;
 }
 
 .try-area .btn-toolbar .btn {
