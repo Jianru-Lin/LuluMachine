@@ -72,6 +72,7 @@ $(function() {
 		this.status = undefined
 		this.nextTransitionFunction = startTransitionFunction
 		this.length = 0
+		this.startPos = undefined
 	}
 
 	Tokenizer.prototype.updateStatus = function(c, pos, eof) {
@@ -92,6 +93,10 @@ $(function() {
 		}
 		if (pos < 0) {
 			throw new Error('[Tokenizer({{name}})] BUG: invalid arguments, pos < 0'.replace('{{name}}', self.name))
+		}
+
+		if (this.startPos === undefined) {
+			this.startPos = pos
 		}
 
 		try {
@@ -120,6 +125,9 @@ $(function() {
 
 		if (status[0] === 'yes') {
 			++self.length
+		}
+		else if (status[1] === 'success' && typeof status[2] === 'number') {
+			self.length += status[2]
 		}
 
 		// remember the status
@@ -178,9 +186,10 @@ $(function() {
 								valid = true
 							}
 							else if (status.length === 3) {
-								if (typeof status[2] === 'number')
-								// ['no', 'success', number]
-								valid = true
+								if (typeof status[2] === 'number' && status[2] <= 0) {
+									// ['no', 'success', number]
+									valid = true	
+								}
 							}
 						}
 					}
@@ -346,8 +355,14 @@ $(function() {
 		}
 		// update ui
 		
-		this._segmentVM.charList.push(c)
-		this._segmentVM.indexList.push(pos)
+		if (eof) {
+			this._segmentVM.charList.push('')
+			this._segmentVM.indexList.push('eof')
+		}
+		else {
+			this._segmentVM.charList.push(c)
+			this._segmentVM.indexList.push(pos)			
+		}
 
 		statusUpdatedTokenizerList.forEach(function(tokenizer) {
 			var tokenizerVM = this.findTokenizerVM[tokenizer.name]
@@ -365,6 +380,10 @@ $(function() {
 
 	Segment.prototype.isContinueStatus = function() {
 		return this.tokenizerGroup.isContinueStatus()
+	}
+
+	Segment.prototype.getWinner = function() {
+		return this.tokenizerGroup.getWinner()
 	}
 
 	function Player(src, txt, pos) {
@@ -511,19 +530,22 @@ $(function() {
 			else {
 				// it's ok
 				// we will create an new segment next step
+				// move pos forward
+				debugger
+				var winnerTokenizer = this._segment.getWinner()
+				this.pos = winnerTokenizer.startPos + winnerTokenizer.length
 			}
 		}
 		else if (this._segment.isContinueStatus()) {
 			// it's ok
+			// move pos forward
+			++this.pos
 		}
 		else {
 			debugger
 			throw new Error('[Player] BUG: impossible status')
 		}
 
-		// move pos forward
-
-		++this.pos
 
 		function compile(src) {
 			var tokenizerList = []
