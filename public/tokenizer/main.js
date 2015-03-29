@@ -98,6 +98,7 @@ $(function() {
 			var status = self.nextTransitionFunction(c, pos, eof)
 		}
 		catch (err) {
+			debugger
 			// this function must throw an exception
 			throwErrorThrowedOnExecution(err)
 		}
@@ -319,7 +320,7 @@ $(function() {
 		this.tokenizerGroup = tokenizerGroup
 		this.findTokenizerVM = {}
 
-		var _segment = {
+		var _segmentVM = {
 			charList: [],
 			indexList: [],
 			tokenizerList: tokenizerGroup.tokenizerList.map(function(tokenizer) {
@@ -332,9 +333,9 @@ $(function() {
 			}, this)
 		}
 
-		presentation.segmentList.push(_segment)
+		presentation.segmentList.push(_segmentVM)
 
-		this._segment = _segment
+		this._segmentVM = _segmentVM
 	}
 
 	Segment.prototype.updateStatus = function(c, pos, eof) {
@@ -343,6 +344,8 @@ $(function() {
 			throw new Error('[Segment] BUG: invalid result return from tokenizerGroup.updateStatus()')
 		}
 		// update ui
+		this._segmentVM.charList.push(c)
+		this._segmentVM.indexList.push(pos)
 		statusUpdatedTokenizerList.forEach(function(tokenizer) {
 			var tokenizerVM = this.findTokenizerVM[tokenizer]
 			tokenizerVM.statusList.push(tokenizer.status[0])
@@ -416,8 +419,8 @@ $(function() {
 	}
 
 	Player.prototype._stoppedStatus = function(reason, detail) {
-		if (reason !== 'eof' && reason !== 'user' && reason !== 'error') {
-			throw new Error('[Player] BUG: invalid arguments, reason can be eof, user or error, not "' + reason + '"')
+		if (reason !== 'success' && reason !== 'failure' && reason !== 'user' && reason !== 'error') {
+			throw new Error('[Player] BUG: invalid arguments, reason can be success, failure, user or error, not "' + reason + '"')
 		}
 		this.onStatusChanged({
 			status: 'stopped.' + reason,
@@ -446,20 +449,69 @@ $(function() {
 
 	Player.prototype._step = function() {
 
-		if (!this._segment || !this._segment.isContinueStatus()) {
-			this._segment = new Segment(compile(this.src))
-		}
-
 		var c = this.txt[this.pos]
 		var pos = this.pos
 		var eof = this.pos >= this.txt.length
+
+		// BUG check
+
+		if (!this._segment) {
+			// first time to step, we need create an segment
+			this._segment = new Segment(compile(this.src))
+		}
+		else if (this._segment.isSuccessStatus()) {
+			if (eof) {
+				throw new Error('[Player] BUG: last segment is success and we have reach the end of text, you can not step any more')
+			}
+			else {
+				// ok, we should create an new segment, cause there are more text to process
+				this._segment = new Segment(compile(this.src))
+			}
+		}
+		else if (this._segment.isFailureStatus()) {
+			throw new Error('[Player] BUG: last segment failed, you can not step any more')
+		}
+		else if (this._segment.isContinueStatus()) {
+			// do nothing, continue use current segment
+		}
+		else {
+			debugger
+			throw new Error('[Player] BUG: impossible status')
+		}
 
 		try {
 			this._segment.updateStatus(c, pos, eof)
 		}
 		catch (err) {
+			debugger
 			this._stopLoop()
 			this._stoppedStatus('error', err)
+		}
+
+		// move pos forward
+
+		++this.pos
+
+		// check segment status
+
+		if (this._segment.isFailureStatus()) {
+			this._stoppedStatus('failure')
+		}
+		else if (this._segment.isSuccessStatus()) {
+			if (eof || this.pos === (this.txt.length - 1)) {
+				this._stoppedStatus('success')
+			}
+			else {
+				// it's ok
+				// we will create an new segment next step
+			}
+		}
+		else if (this._segment.isContinueStatus()) {
+			// it's ok
+		}
+		else {
+			debugger
+			throw new Error('[Player] BUG: impossible status')
 		}
 
 		function compile(src) {
@@ -529,7 +581,9 @@ $(function() {
 								self.noPause = true
 								self.noStop = false
 								break
-							case 'stopped.eof':
+							case 'stopped.success':
+								break
+							case 'stopped.failure':
 								break
 							case 'stopped.error':
 								console.log(to.detail)
