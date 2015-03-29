@@ -202,7 +202,7 @@ $(function() {
 		function throwInvalidStatusReturned(status) {
 			var txt = '[Tokenizer({{name}})] Invalid status returned: {{status}}'
 					  .replace('{{name}}', self.name)
-					  .replace('{{status}}', JSON.stringify(status)))
+					  .replace('{{status}}', JSON.stringify(status))
 			throw new Error(txt)
 		}
 	}
@@ -225,6 +225,8 @@ $(function() {
 		else return false
 	}
 
+	// TokenizerGroup
+
 	function TokenizerGroup(tokenizerList) {
 		if (!Array.isArray(tokenizerList) || tokenizerList.length < 1) {
 			throw new Error('[TokenizerGroup] BUG: invalid arguments, tokenizerList must be provided and not empty')
@@ -233,13 +235,6 @@ $(function() {
 		this.continueList = tokenizerList
 		this.successList = []
 		this.failureList = []
-
-		// performance optimization
-		// to query index of tokenizer quickly
-		this.reverseMap = {}
-		tokenizerList.forEach(function(tokenizer, i) {
-			this.reverseMap[tokenizer] = i
-		}, this)
 	}
 
 	TokenizerGroup.prototype.updateStatus = function(c, pos, eof) {
@@ -248,14 +243,10 @@ $(function() {
 		}
 
 		var nextContinueList = []
-		var updatedStatusList = []
 
 		this.continueList.forEach(function(tokenizer) {
 			// update status on tokenizer
 			tokenizer.updateStatus(c, pos, eof)
-			// add the new status to list cause we need return it later
-			var index = this.reverseMap[tokenizer]
-			updatedStatusList[index] = tokenizer.status
 			// then we will put the tokenizer to different list
 			if (tokenizer.isContinueStatus()) {
 				nextContinueList.push(tokenizer)
@@ -271,8 +262,9 @@ $(function() {
 			}
 		}, this)
 
+		var statusUpdatedTokenizerList = this.continueList
 		this.continueList = nextContinueList
-		return updatedStatusList
+		return statusUpdatedTokenizerList
 	}
 
 	TokenizerGroup.prototype.isFailureStatus = function() {
@@ -317,25 +309,27 @@ $(function() {
 		return winner
 	}
 
+	// Segment
+
 	function Segment(tokenizerGroup) {
 		if (!tokenizerGroup) {
 			throw new Error('[Segment] invalid arguments, tokenizerGroup must be provided')
 		}
 
 		this.tokenizerGroup = tokenizerGroup
-		this.tokenizerMap = {}
+		this.findTokenizerVM = {}
 
 		var _segment = {
 			charList: [],
 			indexList: [],
-			tokenizerList: tokenizerGroup.map(function(tokenizer) {
+			tokenizerList: tokenizerGroup.tokenizerList.map(function(tokenizer) {
 				var _ = {
-					name: tokenizer.info.name,
+					name: tokenizer.name,
 					statusList: []
 				}
-				tokenizerMap[tokenizer.info.name] = _
+				this.findTokenizerVM[tokenizer] = _
 				return _
-			})
+			}, this)
 		}
 
 		presentation.segmentList.push(_segment)
@@ -344,20 +338,27 @@ $(function() {
 	}
 
 	Segment.prototype.updateStatus = function(c, pos, eof) {
-		this.tokenizerGroup.updateStatus(c, pos, eof)
+		var statusUpdatedTokenizerList = this.tokenizerGroup.updateStatus(c, pos, eof)
+		if (!statusUpdatedTokenizerList || statusUpdatedTokenizerList.length < 0) {
+			throw new Error('[Segment] BUG: invalid result return from tokenizerGroup.updateStatus()')
+		}
 		// update ui
+		statusUpdatedTokenizerList.forEach(function(tokenizer) {
+			var tokenizerVM = this.findTokenizerVM[tokenizer]
+			tokenizerVM.statusList.push(tokenizer.status[0])
+		}, this)
 	}
 
-	TokenizerGroup.prototype.isFailureStatus = function() {
-		
+	Segment.prototype.isFailureStatus = function() {
+		return this.tokenizerGroup.isFailureStatus()
 	}
 
-	TokenizerGroup.prototype.isSuccessStatus = function() {
-		
+	Segment.prototype.isSuccessStatus = function() {
+		return this.tokenizerGroup.isSuccessStatus()
 	}
 
-	TokenizerGroup.prototype.isContinueStatus = function() {
-		
+	Segment.prototype.isContinueStatus = function() {
+		return this.tokenizerGroup.isContinueStatus()
 	}
 
 	function Player(src, txt, pos) {
@@ -374,14 +375,12 @@ $(function() {
 
 		var self = this
 
-		this._loopSpan = 100,
-		this._loopHandle = undefined,
-		this._segment = undefined,			// GUI
-		this.src = src,
-		this.txt = txt,
-		this.pos = pos || 0,
-		this._finished = false,
-		this._error = false,
+		this._loopSpan = 100
+		this._loopHandle = undefined
+		this._segment = undefined
+		this.src = src
+		this.txt = txt
+		this.pos = pos || 0
 		this.onStatusChanged = function(status) {}
 
 	}
@@ -421,7 +420,7 @@ $(function() {
 			throw new Error('[Player] BUG: invalid arguments, reason can be eof, user or error, not "' + reason + '"')
 		}
 		this.onStatusChanged({
-			status, 'stopped.' + reason,
+			status: 'stopped.' + reason,
 			detail: detail
 		})
 	}
@@ -446,19 +445,9 @@ $(function() {
 	}
 
 	Player.prototype._step = function() {
-		
-		if (!this._tokenizerGroup) {
-			this._tokenizerGroup = compile(this.src)
-			this._segment = {
-				charList: [],
-				indexList: [],
-				tokenizerList: this._tokenizerGroup.tokenizerList.map(function(tokenizer) {
-					return {
-						name: tokenizer.info.name,
-						statusList: []
-					}
-				})
-			}
+
+		if (!this._segment || !this._segment.isContinueStatus()) {
+			this._segment = new Segment(compile(this.src))
 		}
 
 		var c = this.txt[this.pos]
@@ -466,21 +455,7 @@ $(function() {
 		var eof = this.pos >= this.txt.length
 
 		try {
-			this._tokenizerGroup.updateStatus(c, pos, eof)
-			if (this._tokenizerGroup.isSuccessStatus()) {
-
-			}
-			else if (this._tokenizerGroup.isFailureStatus()) {
-
-			}
-			else if (this._tokenizerGroup.isContinueStatus()) {
-
-			}
-			else {
-				throw new Error('[Player] BUG: impossible status')
-			}
-
-			updateUI()
+			this._segment.updateStatus(c, pos, eof)
 		}
 		catch (err) {
 			this._stopLoop()
@@ -489,35 +464,35 @@ $(function() {
 
 		function compile(src) {
 			var tokenizerList = []
+			var nameExisted = {}	// detect duplicated name
 			var fun = new Function('tokenizer', src)
 			fun(addTokenizer)
 			return new TokenizerGroup(tokenizerList)
 
-			function addTokenizer(name, tokenizer) {
+			function addTokenizer(name, startTransitionFunction) {
 				if (typeof name !== 'string') {
 					throw new Error('[Player.compile] tokenizer name must be string')
 				}
 				else if (name === '') {
 					throw new Error('[Player.compile] tokenizer name can not be empty')
 				}
-
-				if (typeof tokenizer !== 'function') {
-					throw new Error('[Player.compile] tokenizer must be function')					
+				else if (nameExisted[name]) {
+					throw new Error('[Player.compile] duplicated tokenizer name detected: ' + name)
+				}
+				else {
+					nameExisted[name] = true
 				}
 
-				tokenizer.info = {
-					name: name
+				if (typeof startTransitionFunction !== 'function') {
+					throw new Error('[Player.compile] startTransitionFunction must be function')					
 				}
-				tokenizerList.push(tokenizer)
+
+				tokenizerList.push(new Tokenizer(name, startTransitionFunction))
 			}
-		}
-
-		function updateUI() {
-
 		}
 	}
 
-	var player = undefined
+	var player
 
 	var controlbar = window.controlbar = new Vue({
 		el: '.controlbar',
@@ -576,9 +551,8 @@ $(function() {
 						}
 					}
 				}
-				else {
-					player.play()
-				}
+
+				//player.play()
 			},
 			onPause: function(e) {
 				if (!player) throw new Error('BUG: player not exists but \"pause\"" button is enabled')
@@ -592,4 +566,8 @@ $(function() {
 			}
 		}
 	})
+
+	window.testStep = function() {
+		player._step()
+	}
 })
