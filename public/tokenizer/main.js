@@ -304,15 +304,29 @@ $(function() {
 	// TextPlayer
 
 	function Player(src, txt, pos) {
+
+		if (!src || src.length < 1) {
+			throw new Error('[Player] invalid arguments, src?')
+		}
+		if (!txt || txt.length < 1) {
+			throw new Error('[Player] invalid arguments, txt?')
+		}
+		if (typeof pos !== 'number' || pos < 0 || pos >= txt.length) {
+			throw new Error('[Player] invalid arguments, invalid pos ' + pos)
+		}
+
+		var self = this
+
 		this._loopSpan = 100,
 		this._loopHandle = undefined,
-		this._segment = undefined,
+		this._tokenizerGroup = undefined,
 		this.src = src,
 		this.txt = txt,
 		this.pos = pos || 0,
 		this._finished = false,
 		this._error = false,
 		this.onStatusChanged = function(status) {}
+
 	}
 
 	Player.prototype.play = function() {
@@ -347,7 +361,7 @@ $(function() {
 
 	Player.prototype._stoppedStatus = function(reason, detail) {
 		if (reason !== 'eof' && reason !== 'user' && reason !== 'error') {
-			throw new Error('BUG: unknown reason "' + reason + '"')
+			throw new Error('[Player] BUG: invalid arguments, reason can be eof, user or error, not "' + reason + '"')
 		}
 		this.onStatusChanged({
 			status, 'stopped.' + reason,
@@ -375,43 +389,63 @@ $(function() {
 	}
 
 	Player.prototype._step = function() {
-		if (!this.src) {
-			throw new Error('[player] src?')
-		}
-		if (!this.txt) {
-			throw new Error('[player] txt?')
-		}
-		if (typeof this.pos !== 'number' || this.pos < 0 || this.pos >= this.txt.length) {
-			throw new Error('[player] invalid pos ' + this.pos)
-		}
 		
-
-		if (this._segment === undefined) {
-			this._segment = new Segment(this.src, this.txt, this.pos)
+		if (!this._tokenizerGroup) {
+			this._tokenizerGroup = compile(this.src)
 		}
 
-		var _segment = this._segment
+		var c = this.txt[this.pos]
+		var pos = this.pos
+		var eof = this.pos >= this.txt.length
 
-		var status = _segment.next()
+		try {
+			this._tokenizerGroup.updateStatus(c, pos, eof)
+			if (this._tokenizerGroup.isSuccessStatus()) {
 
-		// finished ?
-		if (_segment.finished) {
-			// failed ?
-			if (_segment.failed) {
-				this.finished = true
-				this.error = true
 			}
-			// success and more ?
-			else if ((_segment.winnerTokenizerPos + 1) < this.txt.length) {
-				// create a new segment
-				this._segment = new Segment(this.src, this.txt, _segment.winnerTokenizerPos + 1)
+			else if (this._tokenizerGroup.isFailureStatus()) {
+
 			}
-			// success and eof ?
+			else if (this._tokenizerGroup.isContinueStatus()) {
+
+			}
 			else {
-				// finished
-				this.finished = true
-				this.error = false
+				throw new Error('[Player] BUG: impossible status')
 			}
+
+			updateUI()
+		}
+		catch (err) {
+			this._stopLoop()
+			this._stoppedStatus('error', err)
+		}
+
+		function compile(src) {
+			var nameList = []
+			var tokenizerList = []
+			var fun = new Function('tokenizer', src)
+			fun(addTokenizer)
+			return new TokenizerGroup(tokenizerList)
+
+			function addTokenizer(name, tokenizer) {
+				if (typeof name !== 'string') {
+					throw new Error('[Player.compile] tokenizer name must be string')
+				}
+				else if (name === '') {
+					throw new Error('[Player.compile] tokenizer name can not be empty')
+				}
+
+				if (typeof tokenizer !== 'function') {
+					throw new Error('[Player.compile] tokenizer must be function')					
+				}
+
+				this.nameList.push(name)
+				this.tokenizerList.push(tokenizer)
+			}
+		}
+
+		function updateUI() {
+
 		}
 	}
 
@@ -455,6 +489,7 @@ $(function() {
 							case 'stopped.eof':
 								break
 							case 'stopped.error':
+								console.log(to.detail)
 								break
 							case 'stopped.user':
 								self.noPlay = false
