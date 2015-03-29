@@ -379,7 +379,7 @@ $(function() {
 
 		var self = this
 
-		this._loopSpan = 100
+		this._loopSpan = 1000
 		this._loopHandle = undefined
 		this._segment = undefined
 		this.src = src
@@ -423,10 +423,12 @@ $(function() {
 		if (reason !== 'success' && reason !== 'failure' && reason !== 'user' && reason !== 'error') {
 			throw new Error('[Player] BUG: invalid arguments, reason can be success, failure, user or error, not "' + reason + '"')
 		}
-		this.onStatusChanged({
-			status: 'stopped.' + reason,
-			detail: detail
-		})
+		if (this.onStatusChanged) {
+			this.onStatusChanged({
+				status: 'stopped.' + reason,
+				detail: detail
+			})
+		}
 	}
 
 	Player.prototype._startLoop = function() {
@@ -577,17 +579,14 @@ $(function() {
 							case 'playing':
 								self.noPlay = true
 								self.noPause = false
-								self.noStop = true
 								break
 							case 'paused':
 								self.noPlay = false
 								self.noPause = true
-								self.noStop = false
 								break
 							case 'stopped.success':
 								self.noPlay = false
 								self.noPause = true
-								self.noStop = true
 								// drop player
 								player.onStatusChanged = undefined
 								player = undefined
@@ -595,7 +594,6 @@ $(function() {
 							case 'stopped.failure':
 								self.noPlay = false
 								self.noPause = true
-								self.noStop = true
 								// drop player
 								player.onStatusChanged = undefined
 								player = undefined
@@ -604,7 +602,6 @@ $(function() {
 								console.log(to.detail)
 								self.noPlay = false
 								self.noPause = true
-								self.noStop = true
 								// drop player
 								player.onStatusChanged = undefined
 								player = undefined
@@ -612,7 +609,6 @@ $(function() {
 							case 'stopped.user':
 								self.noPlay = false
 								self.noPause = true
-								self.noStop = true
 								// clear UI
 								presentation.len = 0
 								presentation.pos = 0
@@ -633,10 +629,9 @@ $(function() {
 				if (!player) throw new Error('BUG: player not exists but \"pause\"" button is enabled')
 				player.pause()
 			},
-			onStop: function(e) {
-				if (confirm('要停止吗？')) {
+			onReset: function(e) {
+				if (confirm('要复位吗？')) {
 					if (player) {
-						player.onStatusChanged = undefined
 						player.stop()
 						player = undefined
 					}
