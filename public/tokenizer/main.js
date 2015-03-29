@@ -71,6 +71,7 @@ $(function() {
 		this.name = name
 		this.status = undefined
 		this.nextTransitionFunction = startTransitionFunction
+		this.length = 0
 	}
 
 	Tokenizer.prototype.updateStatus = function(c, pos, eof) {
@@ -105,13 +106,19 @@ $(function() {
 
 		checkStatus(status)
 
-		// set nextTransitionFunction
+		// update nextTransitionFunction
 
 		if (status[0] === 'yes' && typeof status[1] === 'function') {
 			self.nextTransitionFunction = status[1]
 		}
 		else {
 			self.nextTransitionFunction = undefined
+		}
+
+		// update length
+
+		if (status[0] === 'yes') {
+			++self.length
 		}
 
 		// remember the status
@@ -218,70 +225,80 @@ $(function() {
 		else return false
 	}
 
-	// return: [statusList]
-	// notice,
-	// tokenizerList is an array of tokenizer
-	// it must not be empty, but the element in it can be undefined
-	// this is useful feature to reduce the complexity of the algorithm in other part
-	function playTokenizerList(tokenizerList, c, pos, eof) {
+	function TokenizerGroup(tokenizerList) {
+		if (!Array.isArray(tokenizerList) || tokenizerList.length < 1) {
+			throw new Error('[TokenizerGroup] BUG: invalid arguments, tokenizerList must be provided and not empty')
+		}
+		this.tokenizerList = tokenizerList
+		this.continueList = tokenizerList
+		this.successList = []
+		this.failureList = []
+	}
 
-		// BUG check
-
-		if (!tokenizerList || tokenizerList.length < 1) {
-			throw new Error('[playTokenizerList] BUG: invalid arguments, tokenizerList must be provided and not empty')
+	TokenizerGroup.prototype.updateStatus = function(c, pos, eof) {
+		if (this.continueList.length < 1) {
+			throw new Error('[TokenizerGroup] BUG: you can not updateStatus() any more')
 		}
 
-		// we don't check other arguments here
-		// underlying TokenizerPlayer will check
-		// this is low performance we wish to fix this later
+		var list = []
 
-		var statusList = tokenizerList.map(function(tokenizer) {
-			if (tokenizer) {
-				return playTokenizer(tokenizer, c, pos, eof)
+		this.continueList.forEach(function(tokenizer) {
+			tokenizer.updateStatus(c, pos, eof)
+			if (tokenizer.isContinueStatus()) {
+				list.push(tokenizer)
+			}
+			else if (tokenizer.isSuccessStatus()) {
+				this.successList.push(tokenizer)
+			}
+			else if (tokenizer.isFailureStatus()) {
+				this.failureList.push(tokenizer)
 			}
 			else {
-				// tokenizer can be undefined
-				// this is useful, in this case, we just return undefined
-				return undefined
+				throw new Error('[TokenizerGroup] BUG: impossible tokenizer status')
 			}
-		})
+		}, this)
 	}
 
-	// return
-	// {
-	// 	tokenizerList: [], 
-	// 	statusList: [], 
-	// 	success: true | false,
-	// 	failure: true | false
-	// }
-	function playSegment(tokenizerList, text, pos) {
-
-		// do not check tokenizerList cause playTokenizerList will do
-		// but we do need to check text and pos
-
-		if (!text) {
-			throw new Error('[playSegment] BUG: invalid arguments, text must be provided and not empty')
-		}
-		if (typeof pos !== 'number' || pos < 0 || pos >= text.length) {
-			throw new Error('[playSegment] BUG: invalid arguments, pos must be number and in range [0, ' + text.length '), current is ' + pos)
-		}
-
-		var c = text[pos]
-		var eof = (pos === text.length)
-		var statusList = playTokenizerList(tokenizerList, c, pos, eof)
-
-		var done = true
-		var winnerStatus
-		var error
-		statusList.forEach(function(status, i) {
-			if (done && status[0] === 'success' && typeof status[1] === 'function') {
-				done = false
+	TokenizerGroup.prototype.isFailureStatus = function() {
+		if (this.continueList.length === 0 && this.successList.length === 0) {
+			if (this.failureList.length !== 0) {
+				return true
 			}
-		})
+			else {
+				throw new Error("[TokenizerGroup] continueList and successList and failureList is empty")
+			}
+		}
+		else {
+			return false
+		}
 	}
 
-	function playText(tokenizerList, text) {
+	TokenizerGroup.prototype.isSuccessStatus = function() {
+		if (this.continueList.length === 0 && this.successList.length > 0) {
+			return true
+		}
+		else {
+			return false
+		}
+	}
 
+	TokenizerGroup.prototype.isContinueStatus = function() {
+		return this.continueList.length > 0
+	}
+
+	TokenizerGroup.prototype.getWinner = function() {
+		if (!this.isSuccessStatus()) {
+			throw new Error('[TokenizerGroup] if you want to getWinner() current status must be success')
+		}
+
+		var winner = this.successList[0]
+		for (var i = 1, len = this.successList.length; i < len; ++i) {
+			if (this.successList[i].length > winner.length) {
+				winner = this.successList[i]
+			}
+		}
+
+		return winner
 	}
 
 	// TextPlayer
