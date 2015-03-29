@@ -488,17 +488,15 @@ $(function() {
 			this._stoppedStatus('error', err)
 		}
 
-		// move pos forward
-
-		++this.pos
-
 		// check segment status
 
 		if (this._segment.isFailureStatus()) {
+			this._stopLoop()
 			this._stoppedStatus('failure')
 		}
 		else if (this._segment.isSuccessStatus()) {
-			if (eof || this.pos === (this.txt.length - 1)) {
+			if (eof || this.pos >= (this.txt.length - 1)) {
+				this._stopLoop()
 				this._stoppedStatus('success')
 			}
 			else {
@@ -513,6 +511,10 @@ $(function() {
 			debugger
 			throw new Error('[Player] BUG: impossible status')
 		}
+
+		// move pos forward
+
+		++this.pos
 
 		function compile(src) {
 			var tokenizerList = []
@@ -582,11 +584,29 @@ $(function() {
 								self.noStop = false
 								break
 							case 'stopped.success':
+								self.noPlay = false
+								self.noPause = true
+								self.noStop = true
+								// drop player
+								player.onStatusChanged = undefined
+								player = undefined
 								break
 							case 'stopped.failure':
+								self.noPlay = false
+								self.noPause = true
+								self.noStop = true
+								// drop player
+								player.onStatusChanged = undefined
+								player = undefined
 								break
 							case 'stopped.error':
 								console.log(to.detail)
+								self.noPlay = false
+								self.noPause = true
+								self.noStop = true
+								// drop player
+								player.onStatusChanged = undefined
+								player = undefined
 								break
 							case 'stopped.user':
 								self.noPlay = false
@@ -606,7 +626,7 @@ $(function() {
 					}
 				}
 
-				//player.play()
+				player.play()
 			},
 			onPause: function(e) {
 				if (!player) throw new Error('BUG: player not exists but \"pause\"" button is enabled')
