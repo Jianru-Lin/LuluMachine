@@ -531,7 +531,6 @@ $(function() {
 				// it's ok
 				// we will create an new segment next step
 				// move pos forward
-				debugger
 				var winnerTokenizer = this._segment.getWinner()
 				this.pos = winnerTokenizer.startPos + winnerTokenizer.length
 			}
@@ -676,8 +675,4 @@ $(function() {
 			}
 		}
 	})
-
-	window.testStep = function() {
-		player._step()
-	}
 })
