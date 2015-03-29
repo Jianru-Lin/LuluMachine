@@ -233,6 +233,13 @@ $(function() {
 		this.continueList = tokenizerList
 		this.successList = []
 		this.failureList = []
+
+		// performance optimization
+		// to query index of tokenizer quickly
+		this.reverseMap = {}
+		tokenizerList.forEach(function(tokenizer, i) {
+			this.reverseMap[tokenizer] = i
+		}, this)
 	}
 
 	TokenizerGroup.prototype.updateStatus = function(c, pos, eof) {
@@ -240,12 +247,18 @@ $(function() {
 			throw new Error('[TokenizerGroup] BUG: you can not updateStatus() any more')
 		}
 
-		var list = []
+		var nextContinueList = []
+		var updatedStatusList = []
 
 		this.continueList.forEach(function(tokenizer) {
+			// update status on tokenizer
 			tokenizer.updateStatus(c, pos, eof)
+			// add the new status to list cause we need return it later
+			var index = this.reverseMap[tokenizer]
+			updatedStatusList[index] = tokenizer.status
+			// then we will put the tokenizer to different list
 			if (tokenizer.isContinueStatus()) {
-				list.push(tokenizer)
+				nextContinueList.push(tokenizer)
 			}
 			else if (tokenizer.isSuccessStatus()) {
 				this.successList.push(tokenizer)
@@ -257,6 +270,9 @@ $(function() {
 				throw new Error('[TokenizerGroup] BUG: impossible tokenizer status')
 			}
 		}, this)
+
+		this.continueList = nextContinueList
+		return updatedStatusList
 	}
 
 	TokenizerGroup.prototype.isFailureStatus = function() {
@@ -301,7 +317,48 @@ $(function() {
 		return winner
 	}
 
-	// TextPlayer
+	function Segment(tokenizerGroup) {
+		if (!tokenizerGroup) {
+			throw new Error('[Segment] invalid arguments, tokenizerGroup must be provided')
+		}
+
+		this.tokenizerGroup = tokenizerGroup
+		this.tokenizerMap = {}
+
+		var _segment = {
+			charList: [],
+			indexList: [],
+			tokenizerList: tokenizerGroup.map(function(tokenizer) {
+				var _ = {
+					name: tokenizer.info.name,
+					statusList: []
+				}
+				tokenizerMap[tokenizer.info.name] = _
+				return _
+			})
+		}
+
+		presentation.segmentList.push(_segment)
+
+		this._segment = _segment
+	}
+
+	Segment.prototype.updateStatus = function(c, pos, eof) {
+		this.tokenizerGroup.updateStatus(c, pos, eof)
+		// update ui
+	}
+
+	TokenizerGroup.prototype.isFailureStatus = function() {
+		
+	}
+
+	TokenizerGroup.prototype.isSuccessStatus = function() {
+		
+	}
+
+	TokenizerGroup.prototype.isContinueStatus = function() {
+		
+	}
 
 	function Player(src, txt, pos) {
 
@@ -319,7 +376,7 @@ $(function() {
 
 		this._loopSpan = 100,
 		this._loopHandle = undefined,
-		this._tokenizerGroup = undefined,
+		this._segment = undefined,			// GUI
 		this.src = src,
 		this.txt = txt,
 		this.pos = pos || 0,
@@ -392,6 +449,16 @@ $(function() {
 		
 		if (!this._tokenizerGroup) {
 			this._tokenizerGroup = compile(this.src)
+			this._segment = {
+				charList: [],
+				indexList: [],
+				tokenizerList: this._tokenizerGroup.tokenizerList.map(function(tokenizer) {
+					return {
+						name: tokenizer.info.name,
+						statusList: []
+					}
+				})
+			}
 		}
 
 		var c = this.txt[this.pos]
@@ -421,7 +488,6 @@ $(function() {
 		}
 
 		function compile(src) {
-			var nameList = []
 			var tokenizerList = []
 			var fun = new Function('tokenizer', src)
 			fun(addTokenizer)
@@ -439,8 +505,10 @@ $(function() {
 					throw new Error('[Player.compile] tokenizer must be function')					
 				}
 
-				this.nameList.push(name)
-				this.tokenizerList.push(tokenizer)
+				tokenizer.info = {
+					name: name
+				}
+				tokenizerList.push(tokenizer)
 			}
 		}
 
