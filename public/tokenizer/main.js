@@ -599,6 +599,12 @@ $(function() {
 					return
 				}
 
+				// save to local storage
+				if (localStorage) {
+					localStorage.setItem('src', src)
+					localStorage.setItem('txt', txt)
+				}
+
 				if (!player) {
 					// clear UI
 					presentation.len = 0
@@ -675,4 +681,15 @@ $(function() {
 			}
 		}
 	})
+})
+
+// auto load
+$(function() {
+	if (localStorage) {
+		var src = localStorage.getItem('src')
+		var txt = localStorage.getItem('txt')
+
+		srcEditor.setValue(src || '')
+		txtEditor.setValue(txt || '')
+	}
 })
