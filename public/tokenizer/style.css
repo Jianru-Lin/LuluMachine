@@ -61,13 +61,13 @@
 .try-area .segment {
 	margin-bottom: 45px;
 	display: block;
-	float: left;
-}
+/*	float: left;
+*/}
 
 .try-area .segment:not(:first-child) {
-	border-left: solid 2px black;
+/*	border-left: solid 2px black;
 	padding-left: 15px;	
-}
+*/}
 
 .try-area .input .char-list > span {
 	height: 48px;
