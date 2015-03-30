@@ -1,15 +1,16 @@
 .container-fluid
-	.btn-toolbar.controlbar
-		.btn-group
-			a.btn.btn-default(v-on='click: onPlay', v-class='disabled: noPlay')
-				i.fa.fa-play
-				span &nbspPlay
-			a.btn.btn-default(v-on='click: onPause', v-class='disabled: noPause')
-				i.fa.fa-pause
-				span &nbspPause
-		a.btn.btn-default(v-on='click: onReset')
-			i.fa.fa-circle-o-notch
-			span &nbspReset
+	.controlbar.controlbar
+		.btn-toolbar
+			.btn-group
+				a.btn.btn-default(v-on='click: onPlay', v-class='disabled: noPlay')
+					i.fa.fa-play
+					span &nbspPlay
+				a.btn.btn-default(v-on='click: onPause', v-class='disabled: noPause')
+					i.fa.fa-pause
+					span &nbspPause
+			a.btn.btn-default(v-on='click: onReset')
+				i.fa.fa-circle-o-notch
+				span &nbspReset
 	.presentation
 		h3 Input Text (len={{len}}, pos={{pos}})
 		.segment-list
