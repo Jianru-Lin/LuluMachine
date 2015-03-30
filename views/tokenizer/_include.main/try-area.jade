@@ -20,8 +20,9 @@
 					.same-size.index-list
 						span(v-repeat='index : segment.indexList') {{index}}
 				.tokenizer-list
-					.tokenizer(v-repeat='tokenizer : segment.tokenizerList')
-						.name {{tokenizer.name}}
+					.tokenizer(v-repeat='tokenizer : segment.tokenizerList', v-class='winner : tokenizer.isWinner')
+						.name
+							span {{tokenizer.name}}
 						.status.same-size
 							span(v-repeat='status : tokenizer.statusList', v-class='status')
 		.clearfix

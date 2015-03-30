@@ -104,6 +104,11 @@
 }
 
 .try-area .tokenizer .name {
+	color: #ccc;
+}
+
+.try-area .tokenizer.winner .name {
+	color: #333;
 }
 
 .try-area .tokenizer .status > span {

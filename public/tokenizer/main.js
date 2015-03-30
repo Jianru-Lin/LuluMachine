@@ -206,6 +206,7 @@ $(function() {
 			var txt = '[Tokenizer({{name}})] Error throwed on execution: {{error}}'
 					  .replace('{{name}}', self.name)
 					  .replace('{{error}}', err.toString())
+			debugger
 			throw new Error(txt)
 		}
 
@@ -213,6 +214,7 @@ $(function() {
 			var txt = '[Tokenizer({{name}})] Invalid status returned: {{status}}'
 					  .replace('{{name}}', self.name)
 					  .replace('{{status}}', JSON.stringify(status))
+			debugger
 			throw new Error(txt)
 		}
 	}
@@ -275,6 +277,7 @@ $(function() {
 
 		var statusUpdatedTokenizerList = this.continueList
 		this.continueList = nextContinueList
+
 		return statusUpdatedTokenizerList
 	}
 
@@ -336,7 +339,8 @@ $(function() {
 			tokenizerList: tokenizerGroup.tokenizerList.map(function(tokenizer) {
 				var _ = {
 					name: tokenizer.name,
-					statusList: []
+					statusList: [],
+					isWinner: false
 				}
 				this.findTokenizerVM[tokenizer.name] = _
 				return _
@@ -368,6 +372,13 @@ $(function() {
 			var tokenizerVM = this.findTokenizerVM[tokenizer.name]
 			tokenizerVM.statusList.push(tokenizer.status[0])
 		}, this)
+
+		// mark winner ui as needed
+		if (this.tokenizerGroup.isSuccessStatus()) {
+			var winner = this.tokenizerGroup.getWinner()
+			var winnerVM = this.findTokenizerVM[winner.name]
+			winnerVM.isWinner = true
+		}
 	}
 
 	Segment.prototype.isFailureStatus = function() {
@@ -549,7 +560,7 @@ $(function() {
 		function compile(src) {
 			var tokenizerList = []
 			var nameExisted = {}	// detect duplicated name
-			var fun = new Function('tokenizer', src)
+			var fun = new Function('tokenizer', '"use strict";\n' + src)
 			fun(addTokenizer)
 			return new TokenizerGroup(tokenizerList)
 
@@ -613,6 +624,8 @@ $(function() {
 
 					player = new Player(src, txt, 0)
 					player.onStatusChanged = function(to) {
+						// debug
+						//alert(to.status)
 						switch (to.status) {
 							case 'playing':
 								self.noPlay = true
