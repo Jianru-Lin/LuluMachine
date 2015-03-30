@@ -16,7 +16,7 @@
 			.segment(v-repeat='segment : segmentList')
 				.input
 					.same-size.char-list
-						span(v-repeat='char : segment.charList') {{char}}
+						span(v-repeat='char : segment.charList', title='{{char.codePoint}}', data-toggle='tooltip') {{char.text}}
 					.same-size.index-list
 						span(v-repeat='index : segment.indexList') {{index}}
 				.tokenizer-list

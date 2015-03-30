@@ -360,11 +360,11 @@ $(function() {
 		// update ui
 		
 		if (eof) {
-			this._segmentVM.charList.push('')
+			this._segmentVM.charList.push(charOf(undefined))
 			this._segmentVM.indexList.push('eof')
 		}
 		else {
-			this._segmentVM.charList.push(c)
+			this._segmentVM.charList.push(charOf(c))
 			this._segmentVM.indexList.push(pos)			
 		}
 
@@ -378,6 +378,14 @@ $(function() {
 			var winner = this.tokenizerGroup.getWinner()
 			var winnerVM = this.findTokenizerVM[winner.name]
 			winnerVM.isWinner = true
+		}
+
+
+		function charOf(v) {
+			return {
+				codePoint: v === undefined ? 'eof' : '0x' + v.charCodeAt(0).toString(16).toUpperCase(),
+				text: v
+			}
 		}
 	}
 
@@ -671,6 +679,11 @@ $(function() {
 							default:
 								throw new Error('unknown player status: ' + to.status)
 						}
+
+						// init tooltip
+						setTimeout(function() {
+							$('[data-toggle=tooltip]').tooltip()
+						}, 0)
 					}
 				}
 
